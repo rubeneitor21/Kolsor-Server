@@ -1,12 +1,8 @@
 import * as http from "node:http"
 import { WebSocketServer } from "ws"
-
 import { randomUUID } from "node:crypto"
-
 import { Logger } from "@utils/logger"
 import { loadPage } from "@utils/SSR"
-
-
 
 const PORT = process.env.PORT || 3000
 const logger = new Logger()
