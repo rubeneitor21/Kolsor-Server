@@ -12,6 +12,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                 <link rel="shortcut icon" href="favicon/favicon.ico" type="/image/x-icon" />
                 {/* <link rel="manifest" href="/site.webmanifest"></link> */}
                 <link rel="stylesheet" href="/style.css" />
+                <meta name="generator" content="WavePage" />
             </head>
             <body>
                 <div id="root">{children}</div>
