@@ -1,43 +1,52 @@
 {
   // Visit https://aka.ms/tsconfig to read more about this file
   "compilerOptions": {
-
-    "plugins": [{ "transform": "typescript-transform-paths" }],
-
+    "plugins": [
+      {
+        "transform": "typescript-transform-paths"
+      }
+    ],
     // File Layout
     // "rootDir": "./src",
     // "outDir": "./dist",
-
     // Environment Settings
     // See also https://aka.ms/tsconfig/module
     "module": "commonjs",
     "target": "es2024",
     "moduleResolution": "node",
-    "lib": ["ESNext"],
-    "types": ["node"],
-    "baseUrl": ".",   
+    "lib": [
+      "ESNext"
+    ],
+    "baseUrl": ".",
     "paths": {
-      "@utils/*": ["src/utils/*"],
-      "@components/*": ["src/components/*"]
+      "@utils/*": [
+        "src/utils/*"
+      ],
+      "@components/*": [
+        "components/*"
+      ],
+      "@pages/*": [
+        "Pages/*"
+      ]
     },
-
+    "types": [
+      "node",
+      "react",
+    ],
     "resolveJsonModule": true,
+    "esModuleInterop": true,
     // For nodejs:
     // "lib": ["esnext"],
     // "types": ["node"],
     // and npm install -D @types/node
-
     // Other Outputs
     "sourceMap": true,
     "declaration": true,
     "declarationMap": true,
-
     // Stricter Typechecking Options
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
-
     "outDir": "dist",
-
     // Style Options
     // "noImplicitReturns": true,
     // "noImplicitOverride": true,
@@ -45,7 +54,6 @@
     // "noUnusedParameters": true,
     // "noFallthroughCasesInSwitch": true,
     // "noPropertyAccessFromIndexSignature": true,
-
     // Recommended Options
     "strict": true,
     "jsx": "react-jsx",
@@ -55,5 +63,10 @@
     "moduleDetection": "force",
     "skipLibCheck": true,
   },
-  "include": ["src/*"]
+  "include": [
+    "src",
+    "types",
+    "components",
+    "Pages"
+  ]
 }

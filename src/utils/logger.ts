@@ -5,7 +5,7 @@ let writeStream: fs.WriteStream
 
 export class Logger {
     env: "production" | "development"
-    
+
     constructor() {
         this.env = process.env.NODE_ENV === "development" ? process.env.NODE_ENV : "production";
 
