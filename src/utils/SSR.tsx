@@ -1,6 +1,7 @@
 import { renderToString } from "react-dom/server"
 import { Layout } from "@components/Layout"
 import { readFileSync, existsSync } from "node:fs"
+import mime from "mime-types"
 
 function urlToSegments(url: string) {
     // Sanetizar esta mierda para el public xdd
@@ -12,41 +13,42 @@ function urlToSegments(url: string) {
 }
 
 type Response = {
-    data: string,
+    data: string | NonSharedBuffer,
     status: number,
-    type: "text/html" | "application/json"
+    type: string
 }
 
 export async function loadPage(url: string): Promise<Response> {
 
     const segments = urlToSegments(url || "")
 
+    let page;
+
     if (url === "/") {
-        const page = await import("@pages/index")
-        const App = page.App
-
-        const html = renderToString(<Layout><App /></Layout >)
-
-        return { data: html, status: 200, type: "text/html" }
+        page = await import("@pages/index")
     }
 
     // Apis
     // else if (url === "/api") { }
 
     else if (existsSync(`Pages/${segments.join("/")}.tsx`)) {
-
-        const page = await import(`@pages/${segments.join("/")}`)
-        const App = page.App
-
-        const html = renderToString(<Layout><App /></Layout >)
-
-        return { data: html, status: 200, type: "text/html" }
+        page = await import(`@pages/${segments.join("/")}`)
     }
 
-    else {
-        // Carpeta public
+    else if (existsSync(`public/${segments.join("/")}`)) {
+        const data = readFileSync(`public/${segments.join("/")}`)
+        const type = mime.lookup(`public/${segments.join("/")}`) || "text/plain"
+        return { data, status: 200, type }
     }
 
-    const html = renderToString(<Layout>404 </Layout>)
-    return { data: html, status: 404, type: "text/html" }
+    if (!page) {
+        const html = renderToString(<Layout>404 </Layout>)
+        return { data: html, status: 404, type: "text/html" }
+    }
+
+    const App = page.App
+
+    const html = renderToString(<Layout><App /></Layout >)
+
+    return { data: html, status: 200, type: "text/html" }
 }

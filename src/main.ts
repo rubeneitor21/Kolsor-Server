@@ -12,6 +12,7 @@ const server = http.createServer(async (req, res) => {
 
     logger.info(req.url + " - " + response.status)
 
+    res.setHeader('Content-Type', response.type);
     res.statusCode = response.status
     res.end(response.data)
 }).listen(PORT)
