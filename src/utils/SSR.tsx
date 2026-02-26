@@ -42,7 +42,9 @@ export async function loadPage(url: string): Promise<Response> {
     }
 
     if (!page) {
-        const html = renderToString(<Layout>404 </Layout>)
+        page = await import("@pages/404")
+        const App = page.App
+        const html = renderToString(<Layout><App /></Layout>)
         return { data: html, status: 404, type: "text/html" }
     }
 
