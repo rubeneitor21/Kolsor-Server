@@ -4,13 +4,16 @@ import { randomUUID } from "node:crypto"
 import { Logger } from "@utils/logger"
 import { loadPage } from "@utils/SSR"
 
+import { processCommand } from "@utils/gameServer/commands"
+import { matchesGlob } from "node:path"
+
 const PORT = process.env.PORT || 3000
 const logger = new Logger()
 
 const server = http.createServer(async (req, res) => {
     const response = await loadPage(req.url || "")
 
-    logger.info(req.url + " - " + response.status)
+    logger.info(req.url + " - " + response.status + ` (${req.headers["x-forwarded-for"]})`)
 
     res.setHeader('Content-Type', response.type);
     res.statusCode = response.status
@@ -35,19 +38,18 @@ wss.on("connection", (ws: WebSocket, req: Request) => {
 
     clients.set(uuid, ws)
 
-    logger.info(`Client connected: ${uuid}`)
+    processCommand({ type: "connection", from: uuid, data: {} }, clients, logger)
 
-    // let timeoutId = setTimeout(() => {
-    //     clients.delete(uuid)
-    //     ws.close()
-    // }, 5000)
+    logger.info(`Client connected: ${uuid}`)
 
     ws.onmessage = (d: MessageEvent) => {
         let msg = JSON.parse(d.data)
-        logger.info(`Type: ${msg.type}, data: ${msg.data}`)
+        msg.from = uuid
+        processCommand(msg, clients, logger)
     }
 
     ws.onclose = (e: CloseEvent) => {
+        clients.delete(uuid)
         logger.info(`Client disconnected: ${uuid}`)
     }
 })
