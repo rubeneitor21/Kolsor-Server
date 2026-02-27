@@ -38,7 +38,7 @@ wss.on("connection", (ws: WebSocket, req: Request) => {
 
     clients.set(uuid, ws)
 
-    processCommand({ type: "connection", from: uuid, data: {} }, clients, logger)
+    processCommand({ type: "connection", from: uuid }, clients, logger)
 
     logger.info(`Client connected: ${uuid}`)
 

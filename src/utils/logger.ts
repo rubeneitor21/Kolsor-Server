@@ -5,6 +5,7 @@ let writeStream: fs.WriteStream
 
 export class Logger {
     private env: "production" | "development"
+    private writeStream: fs.WriteStream
 
     constructor() {
         this.env = process.env.NODE_ENV === "development" ? process.env.NODE_ENV : "production";
@@ -13,12 +14,24 @@ export class Logger {
             flag: "w"
         });
 
-        writeStream = fs.createWriteStream("latest.log")
+        this.writeStream = fs.createWriteStream("latest.log")
     }
 
     private saveFile(level: string, text: string) {
         const timestamp = new Date().toISOString();
-        writeStream.write(`[${timestamp}] [${level}]: ${text}\n`)
+        const line = `[${timestamp}] [${level}]: ${text}\n`;
+
+        const canWrite = this.writeStream.write(line);
+
+        if (!canWrite) {
+            let start = Date.now()
+            this.writeStream.once('drain', () => {
+                let end = new Date;
+                const timestamp = end.toLocaleDateString() + " " + new Date().toTimeString().split(" ")[0];
+
+                console.log(`[${timestamp}] [${chalk.yellow("Warning")}]: La escritura de logs se pauso durante ${Date.now() - start}`)
+            });
+        }
     }
 
     private log(level: "INFO" | "WARNING" | "ERROR", text: string) {
