@@ -16,13 +16,7 @@ function urlToSegments(url: string) {
     return segments ?? [];
 }
 
-type Response = {
-    data: string | NonSharedBuffer,
-    status: number,
-    type: string
-}
-
-export async function loadPage(url: string, req: IncomingMessage): Promise<Response> {
+export async function loadPage(url: string, req: IncomingMessage): Promise<FrontResponse> {
 
     const segments = urlToSegments(url || "")
 
@@ -47,7 +41,7 @@ export async function loadPage(url: string, req: IncomingMessage): Promise<Respo
 
             if (endpoint) {
                 let respose = endpoint(url, req)
-                return { data: respose.body || "", status: respose.status, type: "application/json" }
+                return { data: JSON.stringify(respose.body) || "", status: respose.status, type: "application/json" }
             }
 
             else {

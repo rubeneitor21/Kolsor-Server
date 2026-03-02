@@ -1,7 +1,7 @@
 export { };
 declare global {
     type EndpointResponse = {
-        body?: string,
+        body?: string | Object,
         status: number = 200
     }
 

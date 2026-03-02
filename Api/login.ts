@@ -7,6 +7,9 @@ export default {
         logger.info("Hola, Api")
 
         return {
+            body: {
+                "ok": true
+            },
             status: 200
         }
     }
