@@ -3,7 +3,10 @@
   "compilerOptions": {
     "plugins": [
       {
-        "transform": "typescript-transform-paths"
+        "transform": "typescript-transform-paths",
+        "ts-node": {
+          "files": true
+        }
       }
     ],
     // File Layout
@@ -27,12 +30,22 @@
       ],
       "@pages/*": [
         "Pages/*"
+      ],
+      "@apis/*": [
+        "Api/*"
+      ],
+      "@types/*": [
+        "types/*"
       ]
     },
-    "types": [
-      "node",
-      "react",
-    ],
+    // "types": [
+    //   "node",
+    //   "react",
+    // ],
+    // "typeRoots": [
+    //   "node_modules/@types",
+    //   "./types"
+    // ],
     "resolveJsonModule": true,
     "esModuleInterop": true,
     // For nodejs:
@@ -67,6 +80,10 @@
     "src",
     "types",
     "components",
-    "Pages"
-  ]
+    "Pages",
+    "Api"
+  ],
+  "ts-node": {
+    "files": true
+  }
 }

@@ -1,7 +1,7 @@
 import { Logger } from "@utils/logger"
 
 let pings = new Map<string, NodeJS.Timeout>()
-let logger: Logger
+let logger: Logger = Logger.getLogger()
 
 function closeTimeout(uuid: string, clients: Map<string, WebSocket>) {
     const ws = clients.get(uuid)
@@ -15,14 +15,6 @@ function closeTimeout(uuid: string, clients: Map<string, WebSocket>) {
 
     clients.delete(uuid)
 }
-
-export interface CommandData {
-    type: string;
-    from: string;
-    body?: any;
-}
-
-type CommandHandler = (data: CommandData, clients: Map<string, WebSocket>) => void;
 
 const commands: Record<string, CommandHandler> = {
     "ping": (data, clients) => {
@@ -47,9 +39,7 @@ const commands: Record<string, CommandHandler> = {
 };
 
 
-export function processCommand(data: CommandData, clients: Map<string, WebSocket>, logger_: Logger) {
-    logger = logger_
-
+export function processCommand(data: CommandData, clients: Map<string, WebSocket>) {
     const handler = commands[data.type]
 
     if (handler) {

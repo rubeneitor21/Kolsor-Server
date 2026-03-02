@@ -2,6 +2,10 @@ import { renderToString } from "react-dom/server"
 import { Layout } from "@components/Layout"
 import { readFileSync, existsSync } from "node:fs"
 import mime from "mime-types"
+import { IncomingMessage } from "node:http";
+import Logger from "./logger";
+
+const logger = Logger.getLogger()
 
 function urlToSegments(url: string) {
     // Sanetizar esta mierda para el public xdd
@@ -18,7 +22,7 @@ type Response = {
     type: string
 }
 
-export async function loadPage(url: string): Promise<Response> {
+export async function loadPage(url: string, req: IncomingMessage): Promise<Response> {
 
     const segments = urlToSegments(url || "")
 
@@ -29,7 +33,32 @@ export async function loadPage(url: string): Promise<Response> {
     }
 
     // Apis
-    // else if (url === "/api") { }
+    else if (url.startsWith("/api/")) {
+        let apiSegments = segments.filter((_, i) => i != 0)
+        logger.info("ApiSegments: Api/" + apiSegments.join("/") + ".ts")
+
+        req.method = req.method ?? ""
+
+        if (existsSync(`Api/${apiSegments.join("/")}.ts`)) {
+            let apiImport = await import(`@apis/${apiSegments.join("/")}`)
+
+            let api: Endpoint = apiImport.default
+            let endpoint: EndPointCommand | undefined = api[req.method]
+
+            if (endpoint) {
+                let respose = endpoint(url, req)
+                return { data: respose.body || "", status: respose.status, type: "application/json" }
+            }
+
+            else {
+                return { data: "{\"Error\": 405}", status: 405, type: "application/json" }
+            }
+        }
+
+        else {
+        }
+        // return {data: response.data, status: response.status, "application/json" }
+    }
 
     else if (existsSync(`Pages/${segments.join("/")}.tsx`)) {
         page = await import(`@pages/${segments.join("/")}`)

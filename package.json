@@ -5,7 +5,7 @@
   "type": "commonjs",
   "main": "src/main.js",
   "scripts": {
-    "dev": "NODE_ENV=development nodemon --watch src --watch Pages --watch components --ext ts,tsx --exec \"ts-node -r tsconfig-paths/register src/main.ts\"",
+    "dev": "NODE_ENV=development nodemon --watch src --watch Pages --watch components --watch types --ext ts,tsx,d.ts --exec \"ts-node -r tsconfig-paths/register src/main.ts\"",
     "build": "node build.mjs",
     "start": "node dist/main.js"
   },

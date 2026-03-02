@@ -7,7 +7,10 @@ export class Logger {
     private env: "production" | "development"
     private writeStream: fs.WriteStream
 
-    constructor() {
+    private static logger = new Logger()
+    public static getLogger = () => Logger.logger
+
+    private constructor() {
         this.env = process.env.NODE_ENV === "development" ? process.env.NODE_ENV : "production";
 
         fs.writeFileSync("latest.log", "hola", {

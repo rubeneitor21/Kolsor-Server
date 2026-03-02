@@ -8,10 +8,10 @@ import { processCommand } from "@utils/gameServer/commands"
 import { matchesGlob } from "node:path"
 
 const PORT = process.env.PORT || 3000
-const logger = new Logger()
+const logger = Logger.getLogger()
 
 const server = http.createServer(async (req, res) => {
-    const response = await loadPage(req.url || "")
+    const response = await loadPage(req.url || "", req)
 
     logger.info(req.url + " - " + response.status + ` (${req.headers["x-forwarded-for"]})`)
 
@@ -38,14 +38,14 @@ wss.on("connection", (ws: WebSocket, req: Request) => {
 
     clients.set(uuid, ws)
 
-    processCommand({ type: "connection", from: uuid }, clients, logger)
+    processCommand({ type: "connection", from: uuid }, clients)
 
     logger.info(`Client connected: ${uuid}`)
 
     ws.onmessage = (d: MessageEvent) => {
-        let msg = JSON.parse(d.data)
+        let msg = JSON.parse(d.data) as CommandData
         msg.from = uuid
-        processCommand(msg, clients, logger)
+        processCommand(msg, clients)
     }
 
     ws.onclose = (e: CloseEvent) => {
