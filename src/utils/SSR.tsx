@@ -28,11 +28,9 @@ export async function loadPage(url: string, req: IncomingMessage): Promise<Front
     let page;
 
     if (url === "/") {
-        // Prioridad al mapa en bundle, fallback a import dinámico
         page = routeMap?.PagesMap?.["index"] || await import("@pages/index")
     }
 
-    // Apis
     else if (url.startsWith("/api/")) {
         let apiSegments = segments.filter((_, i) => i != 0)
         const apiRoute = apiSegments.join("/")
@@ -41,7 +39,6 @@ export async function loadPage(url: string, req: IncomingMessage): Promise<Front
 
         req.method = req.method ?? ""
 
-        // En bundle usamos el mapa, en dev comprobamos el .ts
         const apiModule = routeMap?.ApisMap?.[apiRoute] || 
                          (existsSync(`Api/${apiRoute}.ts`) ? await import(`@apis/${apiRoute}`) : null);
 
@@ -60,11 +57,9 @@ export async function loadPage(url: string, req: IncomingMessage): Promise<Front
         }
     }
 
-    // Páginas dinámicas
     else {
         const pageRoute = segments.join("/")
         
-        // En bundle usamos el mapa, en dev comprobamos el .tsx
         const pageModule = routeMap?.PagesMap?.[pageRoute] || 
                           (existsSync(`Pages/${pageRoute}.tsx`) ? await import(`@pages/${pageRoute}`) : null);
         
@@ -72,7 +67,6 @@ export async function loadPage(url: string, req: IncomingMessage): Promise<Front
             page = pageModule
         }
         
-        // Estáticos
         else if (existsSync(`public/${segments.join("/")}`)) {
             const data = readFileSync(`public/${segments.join("/")}`)
             const type = mime.lookup(`public/${segments.join("/")}`) || "text/plain"
