@@ -5,6 +5,6 @@ declare global {
         status: number = 200
     }
 
-    type EndPointCommand = (url: string, req: IncomingMessage) => EndpointResponse;
+    type EndPointCommand = (url: string, req: IncomingMessage) => EndpointResponse | Promise<EndpointResponse>;
     type Endpoint = Record<string, EndPointCommand>
 }

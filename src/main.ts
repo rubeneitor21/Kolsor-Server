@@ -3,12 +3,15 @@ import { WebSocketServer } from "ws"
 import { randomUUID } from "node:crypto"
 import { Logger } from "@utils/logger"
 import { loadPage } from "@utils/SSR"
-
 import { processCommand } from "@utils/gameServer/commands"
-import { matchesGlob } from "node:path"
+import { Database } from "@utils/database"
 
 const PORT = process.env.PORT || 3000
 const logger = Logger.getLogger()
+
+const db = Database.getDatabase();
+
+(async () => await db.init())()
 
 const server = http.createServer(async (req, res) => {
     const response = await loadPage(req.url || "", req)

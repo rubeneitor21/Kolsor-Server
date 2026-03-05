@@ -1,7 +1,8 @@
 import Logger from "@utils/logger"
 import { Database } from "@utils/database"
-import { parseJSONBody } from "@utils/httpMessages"
 import { IncomingMessage } from "node:http"
+
+import { parseJSONBody } from "@utils/httpMessages"
 
 const logger = Logger.getLogger()
 const db = Database.getDatabase()
@@ -9,22 +10,26 @@ const db = Database.getDatabase()
 export default {
   "POST": async (url: string, req: IncomingMessage): Promise<EndpointResponse> => {
     
-    const credentials = await parseJSONBody(req);
-    const r = await db.loginUser(credentials);
+    const user = await parseJSONBody(req)
+    
+    const r = await db.createUser(user)
     
     if (r?.success) {
       return {
         body: {
-          token: r.token,
-          user: r.user
+          id: r.id
         },
         status: 200
-      };
-    } else {
+      }
+    }
+
+    else {
       return {
-        body: { error: r?.error },
-        status: 401
-      };
+        body: {
+          error: r?.error
+        },
+        status: 400
+      }
     }
   }
 } as Endpoint

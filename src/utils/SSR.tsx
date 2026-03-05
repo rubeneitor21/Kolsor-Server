@@ -40,7 +40,7 @@ export async function loadPage(url: string, req: IncomingMessage): Promise<Front
             let endpoint: EndPointCommand | undefined = api[req.method]
 
             if (endpoint) {
-                let respose = endpoint(url, req)
+                let respose = await endpoint(url, req)
                 return { data: JSON.stringify(respose.body) || "", status: respose.status, type: "application/json" }
             }
 
