@@ -83,10 +83,10 @@ export class Database {
 
     const ping = await this.db.command({ ping: 1 })
     if (ping.ok) {
-      this.logger.info("Db conectada con exito")
+      this.logger.info("DB connection successful")
     }
     else {
-      this.logger.error("Error al conectar con db")
+      this.logger.error("Error connecting to DB")
     }
   }
 }
