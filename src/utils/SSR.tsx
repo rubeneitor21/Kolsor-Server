@@ -4,39 +4,49 @@ import { readFileSync, existsSync } from "node:fs"
 import mime from "mime-types"
 import { IncomingMessage } from "node:http";
 import Logger from "./logger";
+import { join } from "node:path"
 
 const logger = Logger.getLogger()
 
 function urlToSegments(url: string) {
-    // Sanetizar esta mierda para el public xdd
-    const cleanUrl = url.split(/[?#]/)[0] || "";
+  // Sanetizar esta mierda para el public xdd
+  const cleanUrl = url.split(/[?#]/)[0] || "";
 
-    const segments = cleanUrl.match(/[^\/]+/g);
+  const segments = cleanUrl.match(/[^\/]+/g);
 
-    return segments ?? [];
+  return segments ?? [];
 }
+
+let routeMap: any = null;
+try {
+    routeMap = require("../routeMap");
+} catch (e) { }
 
 export async function loadPage(url: string, req: IncomingMessage): Promise<FrontResponse> {
 
     const segments = urlToSegments(url || "")
-
     let page;
 
     if (url === "/") {
-        page = await import("@pages/index")
+        // Prioridad al mapa en bundle, fallback a import dinámico
+        page = routeMap?.PagesMap?.["index"] || await import("@pages/index")
     }
 
     // Apis
     else if (url.startsWith("/api/")) {
         let apiSegments = segments.filter((_, i) => i != 0)
-        logger.info("ApiSegments: Api/" + apiSegments.join("/") + ".ts")
+        const apiRoute = apiSegments.join("/")
+        
+        logger.info("ApiSegments: Api/" + apiRoute + ".ts")
 
         req.method = req.method ?? ""
 
-        if (existsSync(`Api/${apiSegments.join("/")}.ts`)) {
-            let apiImport = await import(`@apis/${apiSegments.join("/")}`)
+        // En bundle usamos el mapa, en dev comprobamos el .ts
+        const apiModule = routeMap?.ApisMap?.[apiRoute] || 
+                         (existsSync(`Api/${apiRoute}.ts`) ? await import(`@apis/${apiRoute}`) : null);
 
-            let api: Endpoint = apiImport.default
+        if (apiModule) {
+            let api: Endpoint = apiModule.default
             let endpoint: EndPointCommand | undefined = api[req.method]
 
             if (endpoint) {
@@ -48,31 +58,36 @@ export async function loadPage(url: string, req: IncomingMessage): Promise<Front
                 return { data: "{\"Error\": 405}", status: 405, type: "application/json" }
             }
         }
+    }
 
-        else {
+    // Páginas dinámicas
+    else {
+        const pageRoute = segments.join("/")
+        
+        // En bundle usamos el mapa, en dev comprobamos el .tsx
+        const pageModule = routeMap?.PagesMap?.[pageRoute] || 
+                          (existsSync(`Pages/${pageRoute}.tsx`) ? await import(`@pages/${pageRoute}`) : null);
+        
+        if (pageModule) {
+            page = pageModule
         }
-        // return {data: response.data, status: response.status, "application/json" }
-    }
-
-    else if (existsSync(`Pages/${segments.join("/")}.tsx`)) {
-        page = await import(`@pages/${segments.join("/")}`)
-    }
-
-    else if (existsSync(`public/${segments.join("/")}`)) {
-        const data = readFileSync(`public/${segments.join("/")}`)
-        const type = mime.lookup(`public/${segments.join("/")}`) || "text/plain"
-        return { data, status: 200, type }
+        
+        // Estáticos
+        else if (existsSync(`public/${segments.join("/")}`)) {
+            const data = readFileSync(`public/${segments.join("/")}`)
+            const type = mime.lookup(`public/${segments.join("/")}`) || "text/plain"
+            return { data, status: 200, type }
+        }
     }
 
     if (!page) {
-        page = await import("@pages/404")
+        page = routeMap?.PagesMap?.["404"] || await import("@pages/404")
         const App = page.App
         const html = renderToString(<Layout><App /></Layout>)
         return { data: html, status: 404, type: "text/html" }
     }
 
     const App = page.App
-
     const html = renderToString(<Layout><App /></Layout >)
 
     return { data: html, status: 200, type: "text/html" }

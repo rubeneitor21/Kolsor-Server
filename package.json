@@ -6,7 +6,7 @@
   "main": "src/main.js",
   "scripts": {
     "dev": "NODE_ENV=development nodemon --watch src --watch Pages --watch components --watch types --watch Api --ext ts,tsx,d.ts --exec \"ts-node -r tsconfig-paths/register src/main.ts\"",
-    "build": "node build.mjs",
+    "build": "node scripts/build-routes.js && node build.mjs && rm src/routeMap.ts",
     "start": "node dist/main.js"
   },
   "repository": {
