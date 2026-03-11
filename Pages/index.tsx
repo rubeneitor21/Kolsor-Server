@@ -11,6 +11,8 @@ export const App = ({ children }: AppProps) => {
             <div>Hola buenas tardes</div>
             <div id="ping"></div>
 
+            <input id="matchmaking-search" type="button" value="Buscar partida" />
+
             <script src="game/main.js" />
         </>
     )

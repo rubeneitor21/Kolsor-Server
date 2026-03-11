@@ -21,9 +21,22 @@
             // console.log(data.body)
             document.querySelector("#ping").textContent = (Date.now() - data.body) + "ms"
         }
+
+        if (data.type === "matchmaking-join") {
+            console.log(data.body)
+        }
     }
 
     ws.onclose = () => {
         clearInterval(intervalId)
     }
+
+    document.querySelector("#matchmaking-search").addEventListener("click", () => {
+        console.log("Buscando partida")
+
+        ws.send(JSON.stringify({
+            type: "matchmaking-search",
+            body: {}
+        }))
+    })
 })()
