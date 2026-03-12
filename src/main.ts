@@ -5,6 +5,7 @@ import { Logger } from "@utils/logger"
 import { loadPage } from "@utils/SSR"
 import { processCommand } from "@utils/gameServer/commands"
 import { Database } from "@utils/database"
+import * as jwt from "jsonwebtoken";
 
 const PORT = process.env.PORT || 3000
 const logger = Logger.getLogger()
@@ -14,45 +15,52 @@ const db = Database.getDatabase();
 (async () => await db.init())()
 
 const server = http.createServer(async (req, res) => {
-    const response = await loadPage(req.url || "", req)
+  const response = await loadPage(req.url || "", req)
 
-    logger.info(req.url + " - " + response.status + ` (${req.headers["x-forwarded-for"]})`)
+  logger.info(req.url + " - " + response.status + ` (${req.headers["x-forwarded-for"]})`)
 
-    res.setHeader('Content-Type', response.type);
-    res.statusCode = response.status
-    res.end(response.data)
+  res.setHeader('Content-Type', response.type);
+  res.statusCode = response.status
+  res.end(response.data)
 }).listen(PORT)
 
 server.on("listening", () => {
-    if (process.env.NODE_ENV === "production") {
-        console.log("Server listening on port " + PORT)
-    }
-    else {
-        logger.info("Server listening on port " + PORT)
-    }
+  if (process.env.NODE_ENV === "production") {
+    console.log("Server listening on port " + PORT)
+  }
+  else {
+    logger.info("Server listening on port " + PORT)
+  }
 })
 
 const wss = new WebSocketServer({ server })
 
 const clients: Map<string, WebSocket> = new Map()
 
-wss.on("connection", (ws: WebSocket, req: Request) => {
-    let uuid = randomUUID().toString()
+wss.on("connection", (ws: WebSocket, req: http.IncomingMessage) => {
+  let token = req.headers.cookie?.split(" ")[0]?.split("=")[1]
+  let data
+  try {
+    data = jwt.verify(token!, process.env.JWT_SECRET || "temp1234") as any
+  }
+  catch (e) { }
 
-    clients.set(uuid, ws)
+  let uuid = data.id || randomUUID().toString()
 
-    processCommand({ type: "connection", from: uuid }, clients)
+  clients.set(uuid, ws)
 
-    logger.info(`Client connected: ${uuid}`)
+  processCommand({ type: "connection", from: uuid }, clients)
 
-    ws.onmessage = (d: MessageEvent) => {
-        let msg = JSON.parse(d.data) as CommandData
-        msg.from = uuid
-        processCommand(msg, clients)
-    }
+  logger.info(`Client connected: ${uuid}`)
 
-    ws.onclose = (e: CloseEvent) => {
-        clients.delete(uuid)
-        logger.info(`Client disconnected: ${uuid}`)
-    }
+  ws.onmessage = (d: MessageEvent) => {
+    let msg = JSON.parse(d.data) as CommandData
+    msg.from = uuid
+    processCommand(msg, clients)
+  }
+
+  ws.onclose = (_e: CloseEvent) => {
+    clients.delete(uuid)
+    logger.info(`Client disconnected: ${uuid}`)
+  }
 })

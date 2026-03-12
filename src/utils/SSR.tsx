@@ -82,7 +82,7 @@ export async function loadPage(url: string, req: IncomingMessage): Promise<Front
     }
 
     const App = page.App
-    const html = renderToString(<Layout><App /></Layout >)
+    const html = renderToString(<Layout><App req={req} /></Layout >)
 
     return { data: html, status: 200, type: "text/html" }
 }
