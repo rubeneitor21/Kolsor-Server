@@ -1,9 +1,72 @@
 import { Logger } from "@utils/logger"
 import { randomUUID } from "node:crypto"
 import * as jwt from "jsonwebtoken";
+import { start } from "node:repl";
+import { Database } from "@utils/database";
 
 let pings = new Map<string, NodeJS.Timeout>()
 let logger: Logger = Logger.getLogger()
+
+const db: Database = Database.getDatabase();
+
+class Room {
+  private id: string;
+  private users: Map<string, WebSocket> = new Map();
+  private state: string = "";
+  private private: boolean = false;
+  private code: string = "";
+
+  private usersInfo: Map<String, any> = new Map();
+
+  constructor(code?: string) {
+    this.id = randomUUID()
+
+    if (code) this.private = true
+
+    this.code = code ?? this.id
+  }
+
+  public async addUser(id: string, ws: WebSocket) {
+    this.users.set(id, ws)
+
+    const info = await db.getUser(id)
+
+    this.usersInfo.set(id, info)
+
+    ws.send(JSON.stringify({
+      type: "matchmaking-join",
+      body: { "id": id, "message": this.getUsersLength() == 1 ? "Creando partida" : "Uniendose a partida" }
+    }))
+
+    if (this.getUsersLength() == 2) {
+      // this.startGame()
+    }
+  }
+
+  public isPublic() {
+    return this.private
+  }
+
+  public getUsersLength() {
+    return this.users.size
+  }
+
+  public getId() {
+    return this.id;
+  }
+
+  private broadcast(type: string, data: string) {
+    this.users.forEach((ws, id) => {
+      ws.send(data) 
+    })
+  }
+
+  private async startGame() {
+    
+    const data = {}
+    this.broadcast("game-start", JSON.stringify(data))
+  }
+}
 
 function closeTimeout(uuid: string, clients: Map<string, WebSocket>) {
   const ws = clients.get(uuid)
@@ -19,8 +82,9 @@ function closeTimeout(uuid: string, clients: Map<string, WebSocket>) {
 }
 
 const rooms: Map<string, Room> = new Map()
+const clientsRoom: Map<string, string> = new Map() // Es un poco de duplicar pero al final hace las busquedas mas rapidas y queda mas limpio
 
-const commands: Record<string, CommandHandler> = {
+const responseCommands: Record<string, CommandHandler> = {
   "ping": (data, clients) => {
     clearTimeout(pings.get(data.from));
 
@@ -87,39 +151,35 @@ const commands: Record<string, CommandHandler> = {
 
     let roomFound = false;
     rooms.forEach((room, id) => {
-      if (room.private) return
-      if (room.users.size == 2) return
+      if (!room.isPublic()) return
+      if (room.getUsersLength() == 2) return
 
       roomFound = true
-      ws?.send(JSON.stringify({
-        type: "matchmaking-join",
-        body: { "id": id, "message": "Uniendose a partida" }
-      }))
+      // ws?.send(JSON.stringify({
+      //   type: "matchmaking-join",
+      //   body: { "id": id, "message": "Uniendose a partida" }
+      // }))
+
+      room.addUser(data.from, ws!)
+
+      clientsRoom.set(data.from, id)
     })
 
     if (!roomFound) {
-      const room: Room = {
-        users: new Map(),
-        state: "waitingPlayers",
-        private: false,
-        code: randomUUID()
-      }
+      const room = new Room()
 
-      room.users.set(data.from, ws!)
+      room.addUser(data.from, ws!)
 
-      rooms.set(room.code, room)
+      rooms.set(room.getId(), room)
 
-      ws?.send(JSON.stringify({
-        type: "matchmaking-join",
-        body: { "id": room.code, "message": "Creando partida" }
-      }))
+      clientsRoom.set(data.from, room.getId())
     }
   }
 };
 
 
 export function processCommand(data: CommandData, clients: Map<string, WebSocket>) {
-  const handler = commands[data.type]
+  const handler = responseCommands[data.type]
 
   if (handler) {
     handler(data, clients);

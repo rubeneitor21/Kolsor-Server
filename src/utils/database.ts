@@ -1,6 +1,6 @@
 import "dotenv/config"
 
-import { Db, MongoClient } from "mongodb"
+import { Db, MongoClient, ObjectId } from "mongodb"
 import { Logger } from "@utils/logger"
 
 import * as bcrypt from "bcrypt"
@@ -48,6 +48,13 @@ export class Database {
       if (e.code == 11000)
         return { success: false, error: "Username already exists" }
     }
+  }
+
+  public async getUser(user: string) {
+    const userCol = this.db.collection(Collections.USERS)
+    const userInfo = await userCol.findOne({_id: new ObjectId(user)})
+
+    return userInfo
   }
 
   public async loginUser(credentials: UserRegister) {
