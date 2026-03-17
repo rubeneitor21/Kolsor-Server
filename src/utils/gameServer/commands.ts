@@ -44,7 +44,7 @@ class Room {
   }
 
   public isPublic() {
-    return this.private
+    return !this.private
   }
 
   public getUsersLength() {
@@ -117,7 +117,7 @@ const responseCommands: Record<string, CommandHandler> = {
     let tokenData
 
     try {
-      tokenData = jwt.verify(token, process.env.JWT_SECRET || "temp1234")
+      tokenData = jwt.verify(token, process.env.JWT_SECRET || "temp1234") as any
     } catch (e) {
       ws?.send(JSON.stringify({
         type: "closing",
@@ -133,6 +133,11 @@ const responseCommands: Record<string, CommandHandler> = {
       type: "auth",
       body: JSON.stringify(tokenData)
     }))
+
+    clients.delete(data.from)
+    clients.set(tokenData.id, ws!)
+
+    return tokenData.id 
   },
 
   "connection": (data, clients) => {

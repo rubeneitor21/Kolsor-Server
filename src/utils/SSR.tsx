@@ -4,7 +4,6 @@ import { readFileSync, existsSync } from "node:fs"
 import mime from "mime-types"
 import { IncomingMessage } from "node:http";
 import Logger from "./logger";
-import { join } from "node:path"
 
 const logger = Logger.getLogger()
 
@@ -77,7 +76,7 @@ export async function loadPage(url: string, req: IncomingMessage): Promise<Front
     if (!page) {
         page = routeMap?.PagesMap?.["404"] || await import("@pages/404")
         const App = page.App
-        const html = renderToString(<Layout><App /></Layout>)
+        const html = "<!DOCTYPE html>" + renderToString(<Layout><App /></Layout>)
         return { data: html, status: 404, type: "text/html" }
     }
 

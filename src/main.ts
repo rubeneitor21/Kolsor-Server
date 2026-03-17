@@ -45,7 +45,7 @@ wss.on("connection", (ws: WebSocket, req: http.IncomingMessage) => {
   }
   catch (e) { }
 
-  let uuid = data.id || randomUUID().toString()
+  let uuid = data?.id || randomUUID().toString()
 
   clients.set(uuid, ws)
 
@@ -55,8 +55,16 @@ wss.on("connection", (ws: WebSocket, req: http.IncomingMessage) => {
 
   ws.onmessage = (d: MessageEvent) => {
     let msg = JSON.parse(d.data) as CommandData
+
     msg.from = uuid
-    processCommand(msg, clients)
+ 
+    let newuuid = processCommand(msg, clients)
+    
+    // De momento es el unico evento que devuelve algo
+    if (typeof newuuid === "string") {
+      logger.info(`Cliente autenticado: ${uuid} -> ${newuuid}`)
+      uuid = newuuid
+    }
   }
 
   ws.onclose = (_e: CloseEvent) => {
