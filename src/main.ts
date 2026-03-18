@@ -57,9 +57,8 @@ wss.on("connection", (ws: WebSocket, req: http.IncomingMessage) => {
     let msg = JSON.parse(d.data) as CommandData
 
     msg.from = uuid
- 
     let newuuid = processCommand(msg, clients)
-    
+   
     // De momento es el unico evento que devuelve algo
     if (typeof newuuid === "string") {
       logger.info(`Cliente autenticado: ${uuid} -> ${newuuid}`)

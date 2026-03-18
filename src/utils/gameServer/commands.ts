@@ -100,6 +100,7 @@ const responseCommands: Record<string, CommandHandler> = {
   },
 
   "auth": (data, clients) => {
+    console.log("auth")
     const ws = clients.get(data.from)
 
     if (!data.body.jwt) {
@@ -187,7 +188,7 @@ export function processCommand(data: CommandData, clients: Map<string, WebSocket
   const handler = responseCommands[data.type]
 
   if (handler) {
-    handler(data, clients);
+    return handler(data, clients);
   } else {
     logger.warning(`Unknown command: ${data.type} from ${data.from}`);
   }
