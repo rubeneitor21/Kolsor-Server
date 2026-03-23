@@ -1,4 +1,5 @@
 import { Logger } from "@utils/logger"
+import { DiceRNG } from "@utils/gameServer/dice"
 import { randomUUID } from "node:crypto"
 import * as jwt from "jsonwebtoken";
 import { start } from "node:repl";
@@ -15,6 +16,7 @@ class Room {
   private state: string = "";
   private private: boolean = false;
   private code: string = "";
+  private rng!: DiceRNG;
 
   private usersInfo: Map<String, any> = new Map();
 
@@ -24,6 +26,12 @@ class Room {
     if (code) this.private = true
 
     this.code = code ?? this.id
+  }
+
+  private initRNG() {
+    const seed = this.users.keys().reduce((total, current) => total + current) + this.id
+
+    this.rng = new DiceRNG(seed, this.id)
   }
 
   public async addUser(id: string, ws: WebSocket) {
@@ -39,7 +47,9 @@ class Room {
     }))
 
     if (this.getUsersLength() == 2) {
-      // this.startGame()
+      this.initRNG()
+
+      this.startGame()
     }
   }
 
@@ -57,13 +67,25 @@ class Room {
 
   private broadcast(type: string, data: string) {
     this.users.forEach((ws, id) => {
-      ws.send(data) 
+      ws.send(data)
     })
   }
 
   private async startGame() {
-    
-    const data = {}
+    const playerStartIndex = this.rng.getStart()
+
+    const users = this.users.keys()
+
+    const playerStart = users.find((_key, i) => i == playerStartIndex)
+
+    const data = {
+      type: "game-start",
+      body: {
+        playerStart: playerStart,
+        diceCheck: JSON.stringify(this.rng.getRolls(10)) // Borrar luego
+      }
+    }
+
     this.broadcast("game-start", JSON.stringify(data))
   }
 }
@@ -138,7 +160,7 @@ const responseCommands: Record<string, CommandHandler> = {
     clients.delete(data.from)
     clients.set(tokenData.id, ws!)
 
-    return tokenData.id 
+    return tokenData.id
   },
 
   "connection": (data, clients) => {
