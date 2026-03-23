@@ -46,7 +46,7 @@ wss.on("connection", async (ws: WebSocket, req: http.IncomingMessage) => {
   let token = req.headers.cookie?.split("; ").find(c => c.startsWith("token="))?.split("=")[1]
   let data
   try {
-    data = jwt.verify(token!, process.env.JWT_SECRET || "temp1234") as any
+    data = jwt.verify(token!, process.env.JWT_SECRET!) as any
   }
   catch (e) { }
 

@@ -70,7 +70,7 @@ class Room {
     data.type = type
 
     this.users.forEach((ws, id) => {
-      ws.send(data)
+      ws.send(JSON.stringify(data))
     })
   }
 
@@ -144,7 +144,7 @@ const responseCommands: Record<string, CommandHandler> = {
     let tokenData
 
     try {
-      tokenData = jwt.verify(token, process.env.JWT_SECRET || "temp1234") as any
+      tokenData = jwt.verify(token, process.env.JWT_SECRET!) as any
     } catch (e) {
       ws?.send(JSON.stringify({
         type: "closing",
@@ -167,8 +167,10 @@ const responseCommands: Record<string, CommandHandler> = {
 
     clearTimeout(pings.get(data.from))
 
+    pings.delete(data.from)
+
     pings.set(tokenData.id, setTimeout(() => {
-      closeTimeout(data.from, clients);
+      closeTimeout(tokenData.id, clients);
     }, 6000));
 
     return tokenData.id
