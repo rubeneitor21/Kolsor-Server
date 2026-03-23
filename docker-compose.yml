@@ -1,0 +1,32 @@
+services:
+  kolsor:
+    image: node:20-alpine
+    container_name: ${STACK_NAME}
+    restart: always
+    environment:
+      - HOST=0.0.0.0
+      - PORT=3000
+      - NODE_ENV=development
+      - JWT_SECRET="${JWT_SECRET}"
+      - DB_CONNECTION=mongodb://kolsor:${MONGO_PASSWORD}@mongo/kolsor?authSource=admin
+    working_dir: /app
+    volumes:
+      - .:/app
+    command: npm run dev
+    
+    ports:
+      - 3000:3000
+
+  mongo:
+    image: mongo:latest
+    container_name: ${STACK_NAME}_db
+    restart: always
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=kolsor
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_PASSWORD}
+    volumes:
+      - mongo_data:/data/db
+
+
+volumes:
+  mongo_data:
