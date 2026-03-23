@@ -63,8 +63,7 @@
 
       if (data.type === "game-rolls") {
         let rollsDiv = document.querySelector("#rolls")
-        console.log(JSON.stringify(data.body[userId]))
-        rollsDiv.innerHTML = JSON.stringify(data.body[userId])
+        rollsDiv.innerHTML = "Tiradas Test:<br>" + JSON.stringify(data.body[userId], null, 2)
       }
     }
 
