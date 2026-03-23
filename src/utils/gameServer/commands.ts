@@ -80,10 +80,19 @@ class Room {
 
     const playerStart = users.find((_key, i) => i == playerStartIndex)
 
+    let playerInfo:any = []
+
+    this.usersInfo.forEach((v,k) => {
+      playerInfo.push({
+        id: k,
+        username: v.username
+      })
+    })
+
     const data = {
       body: {
         playerStart: playerStart,
-        diceCheck: JSON.stringify(this.rng.getRolls(10)) // Borrar luego
+        players: playerInfo
       }
     }
 

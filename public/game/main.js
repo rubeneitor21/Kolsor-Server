@@ -2,6 +2,9 @@
   let ws //= new WebSocket("wss://" + window.location.host)
   let authed = false
 
+  const username = document.querySelector("#username").innerHTML
+  const userId = document.querySelector("#id").innerHTML
+
   let intervalId;
 
   const searchButton = document.querySelector("#matchmaking-search")
@@ -41,6 +44,21 @@
 
       if (data.type === "auth") {
         authed = true
+      }
+
+      if (data.type === "game-start") {
+        let playersDiv = document.querySelector("#players")
+        
+        let players = data.body.players
+
+        players.forEach((p) => {
+          if (p.id === userId) {
+            playersDiv.innerHTML += `<div>${p.username} - Tu</div>`
+          }
+          else {
+            playersDiv.innerHTML += `<div>${p.username}</div>`
+          }
+        })
       }
     }
 

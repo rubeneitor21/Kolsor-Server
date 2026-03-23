@@ -10,23 +10,28 @@ type AppProps = {
 export const App = ({ children, req }: AppProps) => {
 
   const cookieHeader = req?.headers.cookie
-  const token = cookieHeader?.split(" ")[0]?.split("=")[1]
+  const token = cookieHeader?.split("; ").find(c => c.startsWith("token="))?.split("=")[1]
 
   let username;
+  let id;
 
   if (token) {
     try {
-      const data = jwt.verify(token, process.env.JWT_SECRET || "temp1234") as any
+      const data = jwt.verify(token, process.env.JWT_SECRET!) as any
       username = data.username
-    } catch {}
+      id = data.id
+    } catch { }
   }
 
   return (
     <>
+      <div id="username" hidden={true} >{username}</div>
+      <div id="id" hidden={true} >{id}</div>
       <div>Hola buenas tardes {username || ""}</div>
       <div id="ping"></div>
 
       <input id="matchmaking-search" type="button" value="Buscar partida" />
+      <div id="players"></div>
 
       <script src="game/main.js" />
     </>
