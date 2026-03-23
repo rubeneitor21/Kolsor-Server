@@ -97,10 +97,11 @@ class Room {
     }
 
     const rolls: any = {
+      body: {}
     }
 
     this.usersInfo.forEach((v,k: any) => {
-      rolls[k] = this.rng.getRolls(10)
+      rolls.body[k] = this.rng.getRolls(10)
     })
   
     this.broadcast("game-start", data)
