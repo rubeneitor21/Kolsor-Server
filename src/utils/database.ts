@@ -21,7 +21,7 @@ export class Database {
 
   private SALT_ROUNDS = 10
 
-  private readonly DUMMY_HASH = "$2b$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ012345"
+  private readonly DUMMY_HASH = bcrypt.hashSync("dummy", this.SALT_ROUNDS) 
 
   private constructor() {
     this.client = new MongoClient(process.env.DB_CONNECTION || "")
@@ -40,8 +40,6 @@ export class Database {
       const userCol = this.db.collection(Collections.USERS)
 
       const newUserId = (await userCol.insertOne(newUser)).insertedId
-
-      this.logger.info("hola?")
 
       return { success: true, id: newUserId }
     }
@@ -95,9 +93,11 @@ export class Database {
     const ping = await this.db.command({ ping: 1 })
     if (ping.ok) {
       this.logger.info("DB connection successful")
+      return "connected"
     }
     else {
       this.logger.error("Error connecting to DB")
+      return "error"
     }
   }
 }

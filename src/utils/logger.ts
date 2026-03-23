@@ -1,8 +1,6 @@
 import * as fs from "node:fs"
 import chalk from "chalk"
 
-let writeStream: fs.WriteStream
-
 export class Logger {
     private env: "production" | "development"
     private writeStream: fs.WriteStream

@@ -1,5 +1,4 @@
 ;(async () => {
-  document.cookie = "jwt=; path=/;" 
   const loginButton = document.querySelector("#login")
 
   loginButton.addEventListener("click", async () => {
@@ -22,8 +21,5 @@
     const data = await response.json()
 
     console.log(data)
-
-    // localStorage.setItem("jwt", data.token)
-    // document.cookie = `jwt=${data.token}; path=/;`
   })
 })()

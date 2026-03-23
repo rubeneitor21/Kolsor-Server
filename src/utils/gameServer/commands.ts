@@ -2,7 +2,6 @@ import { Logger } from "@utils/logger"
 import { DiceRNG } from "@utils/gameServer/dice"
 import { randomUUID } from "node:crypto"
 import * as jwt from "jsonwebtoken";
-import { start } from "node:repl";
 import { Database } from "@utils/database";
 import { ObjectId } from "mongodb";
 
@@ -126,7 +125,6 @@ const responseCommands: Record<string, CommandHandler> = {
   },
 
   "auth": (data, clients) => {
-    console.log("auth")
     const ws = clients.get(data.from)
 
     if (!data.body.jwt) {

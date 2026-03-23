@@ -8,7 +8,6 @@ import Logger from "./logger";
 const logger = Logger.getLogger()
 
 function urlToSegments(url: string) {
-  // Sanetizar esta mierda para el public xdd
   const cleanUrl = url.split(/[?#]/)[0] || "";
 
   const segments = cleanUrl.match(/[^\/]+/g);
@@ -33,7 +32,7 @@ export async function loadPage(url: string, req: IncomingMessage): Promise<Front
 
   if (url === "/") {
     if (!isAuthenticated(req)) {
-      return { data: "", status: 301, type: "text/html", headers: { "Location": "/auth/login" } }
+      return { data: "", status: 302, type: "text/html", headers: { "Location": "/auth/login" } }
     }
     page = routeMap?.PagesMap?.["index"] || await import("@pages/index")
   }

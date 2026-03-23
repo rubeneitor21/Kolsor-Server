@@ -17,8 +17,6 @@ if (!process.env.JWT_SECRET) {
 
 const db = Database.getDatabase();
 
-(async () => await db.init())()
-
 const server = http.createServer(async (req, res) => {
   const response = await loadPage(req.url || "", req)
 
@@ -31,7 +29,18 @@ const server = http.createServer(async (req, res) => {
   res.setHeader('Content-Type', response.type);
   res.statusCode = response.status
   res.end(response.data)
-}).listen(PORT)
+});
+
+(async () => {
+  const status = await db.init()
+
+  if (status !== "connected") {
+    logger.error("Fallo al conectar a la DB")
+    process.exit(1)
+  }
+
+  server.listen(PORT)
+})()
 
 server.on("listening", () => {
   if (process.env.NODE_ENV === "production") {
