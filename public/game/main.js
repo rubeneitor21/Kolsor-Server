@@ -34,7 +34,7 @@
 
       if (data.type === "pong") {
         // console.log(data.body)
-        document.querySelector("#ping").textContent = (Date.now() - data.body) + "ms"
+        document.querySelector("#ping").textContent = Math.abs(Date.now() - data.body) + "ms"
       }
 
       if (data.type === "matchmaking-join") {
@@ -59,6 +59,12 @@
             playersDiv.innerHTML += `<div>${p.username}</div>`
           }
         })
+      }
+
+      if (data.type === "game-rolls") {
+        let rollsDiv = document.querySelector("#rolls")
+
+        rollsDiv.innerHTML = JSON.stringify(data.body[userId])
       }
     }
 

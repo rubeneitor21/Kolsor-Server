@@ -96,7 +96,15 @@ class Room {
       }
     }
 
+    const rolls: any = {
+    }
+
+    this.usersInfo.forEach((v,k: any) => {
+      rolls[k] = this.rng.getRolls(10)
+    })
+  
     this.broadcast("game-start", data)
+    this.broadcast("game-rolls", rolls)
   }
 }
 

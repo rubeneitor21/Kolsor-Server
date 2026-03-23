@@ -32,6 +32,7 @@ export const App = ({ children, req }: AppProps) => {
 
       <input id="matchmaking-search" type="button" value="Buscar partida" />
       <div id="players"></div>
+      <div id="rolls"></div>
 
       <script src="game/main.js" />
     </>
