@@ -1,11 +1,4 @@
 (() => {
-
-  const jwt = document.cookie.split(" ")[0].split("=")[1]
-
-  if (!jwt) {
-    window.location.assign("/auth/login")
-  }
-
   let ws //= new WebSocket("wss://" + window.location.host)
   let authed = false
 
@@ -22,12 +15,12 @@
         }))
       }, 5000)
 
-      ws.send(JSON.stringify({
-        type: "auth",
-        body: {
-          "jwt": jwt
-        }
-      }))
+      // ws.send(JSON.stringify({
+      //   type: "auth",
+      //   body: {
+      //     "jwt": token
+      //   }
+      // }))
     }
 
     ws.onmessage = (msg) => {

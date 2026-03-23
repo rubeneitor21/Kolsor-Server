@@ -21,6 +21,8 @@ export class Database {
 
   private SALT_ROUNDS = 10
 
+  private readonly DUMMY_HASH = "$2b$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ012345"
+
   private constructor() {
     this.client = new MongoClient(process.env.DB_CONNECTION || "")
   }
@@ -47,12 +49,13 @@ export class Database {
       this.logger.error(e)
       if (e.code == 11000)
         return { success: false, error: "Username already exists" }
+      return { success: false, error: "Error interno" }
     }
   }
 
   public async getUser(user: string) {
     const userCol = this.db.collection(Collections.USERS)
-    const userInfo = await userCol.findOne({_id: new ObjectId(user)})
+    const userInfo = await userCol.findOne({ _id: new ObjectId(user) })
 
     return userInfo
   }
@@ -62,13 +65,14 @@ export class Database {
       const userCol = this.db.collection(Collections.USERS);
       const user = await userCol.findOne({ username: credentials.username });
 
-      if (!user) return { success: false, error: "Credenciales inválidas" };
+      // if (!user) return { success: false, error: "Credenciales inválidas" };
+      const hashToCompare = user?.password ?? this.DUMMY_HASH;
 
-      const isMatch = await bcrypt.compare(credentials.password, user.password);
+      const isMatch = await bcrypt.compare(credentials.password, hashToCompare);
       if (!isMatch) return { success: false, error: "Credenciales inválidas" };
 
       const token = jwt.sign(
-        { id: user._id.toString(), username: user.username },
+        { id: user?._id.toString(), username: user?.username },
         process.env.JWT_SECRET || "temp1234",
         { expiresIn: '24h' }
       );
@@ -76,7 +80,7 @@ export class Database {
       return {
         success: true,
         token,
-        user: { id: user._id.toString(), username: user.username }
+        user: { id: user?._id.toString(), username: user?.username }
       };
 
     } catch (e) {

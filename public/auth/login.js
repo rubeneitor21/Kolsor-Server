@@ -24,6 +24,6 @@
     console.log(data)
 
     // localStorage.setItem("jwt", data.token)
-    document.cookie = `jwt=${data.token}; path=/;`
+    // document.cookie = `jwt=${data.token}; path=/;`
   })
 })()

@@ -16,72 +16,80 @@ function urlToSegments(url: string) {
   return segments ?? [];
 }
 
+function isAuthenticated(req: IncomingMessage): boolean {
+  const cookies = req.headers.cookie ?? ""
+  return cookies.split("; ").some(c => c.startsWith("token="))
+}
+
 let routeMap: any = null;
 try {
-    routeMap = require("../routeMap");
+  routeMap = require("../routeMap");
 } catch (e) { }
 
 export async function loadPage(url: string, req: IncomingMessage): Promise<FrontResponse> {
 
-    const segments = urlToSegments(url || "")
-    let page;
+  const segments = urlToSegments(url || "")
+  let page;
 
-    if (url === "/") {
-        page = routeMap?.PagesMap?.["index"] || await import("@pages/index")
+  if (url === "/") {
+    if (!isAuthenticated(req)) {
+      return { data: "", status: 301, type: "text/html", headers: { "Location": "/auth/login" } }
+    }
+    page = routeMap?.PagesMap?.["index"] || await import("@pages/index")
+  }
+
+  else if (url.startsWith("/api/")) {
+    let apiSegments = segments.filter((_, i) => i != 0)
+    const apiRoute = apiSegments.join("/")
+
+    logger.info("ApiSegments: Api/" + apiRoute + ".ts")
+
+    req.method = req.method ?? ""
+
+    const apiModule = routeMap?.ApisMap?.[apiRoute] ||
+      (existsSync(`Api/${apiRoute}.ts`) ? await import(`@apis/${apiRoute}`) : null);
+
+    if (apiModule) {
+      let api: Endpoint = apiModule.default
+      let endpoint: EndPointCommand | undefined = api[req.method]
+
+      if (endpoint) {
+        let response = await endpoint(url, req)
+        return { data: JSON.stringify(response.body) || "", status: response.status, type: "application/json", headers: response?.headers }
+      }
+
+      else {
+        return { data: "{\"Error\": 405}", status: 405, type: "application/json" }
+      }
+    }
+  }
+
+  else {
+    const pageRoute = segments.join("/")
+
+    const pageModule = routeMap?.PagesMap?.[pageRoute] ||
+      (existsSync(`Pages/${pageRoute}.tsx`) ? await import(`@pages/${pageRoute}`) : null);
+
+    if (pageModule) {
+      page = pageModule
     }
 
-    else if (url.startsWith("/api/")) {
-        let apiSegments = segments.filter((_, i) => i != 0)
-        const apiRoute = apiSegments.join("/")
-        
-        logger.info("ApiSegments: Api/" + apiRoute + ".ts")
-
-        req.method = req.method ?? ""
-
-        const apiModule = routeMap?.ApisMap?.[apiRoute] || 
-                         (existsSync(`Api/${apiRoute}.ts`) ? await import(`@apis/${apiRoute}`) : null);
-
-        if (apiModule) {
-            let api: Endpoint = apiModule.default
-            let endpoint: EndPointCommand | undefined = api[req.method]
-
-            if (endpoint) {
-                let respose = await endpoint(url, req)
-                return { data: JSON.stringify(respose.body) || "", status: respose.status, type: "application/json" }
-            }
-
-            else {
-                return { data: "{\"Error\": 405}", status: 405, type: "application/json" }
-            }
-        }
+    else if (existsSync(`public/${segments.join("/")}`)) {
+      const data = readFileSync(`public/${segments.join("/")}`)
+      const type = mime.lookup(`public/${segments.join("/")}`) || "text/plain"
+      return { data, status: 200, type }
     }
+  }
 
-    else {
-        const pageRoute = segments.join("/")
-        
-        const pageModule = routeMap?.PagesMap?.[pageRoute] || 
-                          (existsSync(`Pages/${pageRoute}.tsx`) ? await import(`@pages/${pageRoute}`) : null);
-        
-        if (pageModule) {
-            page = pageModule
-        }
-        
-        else if (existsSync(`public/${segments.join("/")}`)) {
-            const data = readFileSync(`public/${segments.join("/")}`)
-            const type = mime.lookup(`public/${segments.join("/")}`) || "text/plain"
-            return { data, status: 200, type }
-        }
-    }
-
-    if (!page) {
-        page = routeMap?.PagesMap?.["404"] || await import("@pages/404")
-        const App = page.App
-        const html = "<!DOCTYPE html>" + renderToString(<Layout><App /></Layout>)
-        return { data: html, status: 404, type: "text/html" }
-    }
-
+  if (!page) {
+    page = routeMap?.PagesMap?.["404"] || await import("@pages/404")
     const App = page.App
-    const html = "<!DOCTYPE html>" + renderToString(<Layout><App req={req} /></Layout >)
+    const html = "<!DOCTYPE html>" + renderToString(<Layout><App /></Layout>)
+    return { data: html, status: 404, type: "text/html" }
+  }
 
-    return { data: html, status: 200, type: "text/html" }
+  const App = page.App
+  const html = "<!DOCTYPE html>" + renderToString(<Layout><App req={req} /></Layout >)
+
+  return { data: html, status: 200, type: "text/html" }
 }

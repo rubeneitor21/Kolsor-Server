@@ -24,6 +24,10 @@ const server = http.createServer(async (req, res) => {
 
   logger.info(req.url + " - " + response.status + ` (${req.headers["x-forwarded-for"]})`)
 
+  if (response.headers) {
+    Object.entries(response.headers).forEach(([k, v]) => res.setHeader(k, v))
+  }
+
   res.setHeader('Content-Type', response.type);
   res.statusCode = response.status
   res.end(response.data)
@@ -47,6 +51,11 @@ wss.on("connection", async (ws: WebSocket, req: http.IncomingMessage) => {
   let data
   try {
     data = jwt.verify(token!, process.env.JWT_SECRET!) as any
+
+    ws?.send(JSON.stringify({
+      type: "auth",
+      body: JSON.stringify(data)
+    }))
   }
   catch (e) { }
 
@@ -64,7 +73,7 @@ wss.on("connection", async (ws: WebSocket, req: http.IncomingMessage) => {
 
     msg.from = uuid
     let newuuid = await processCommand(msg, clients)
-   
+
     // De momento es el unico evento que devuelve algo
     if (typeof newuuid === "string") {
       logger.info(`Cliente autenticado: ${uuid} -> ${newuuid}`)
