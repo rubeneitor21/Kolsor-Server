@@ -6,5 +6,5 @@ declare global {
     body?: any;
   }
 
-  type CommandHandler = (data: CommandData, clients: Map<string, WebSocket>) => void | string;
+  type CommandHandler = (data: CommandData, clients: Map<string, WebSocket>) => void | string | Promise<void | string>;
 }

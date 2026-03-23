@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto"
 import * as jwt from "jsonwebtoken";
 import { start } from "node:repl";
 import { Database } from "@utils/database";
+import { ObjectId } from "mongodb";
 
 let pings = new Map<string, NodeJS.Timeout>()
 let logger: Logger = Logger.getLogger()
@@ -29,7 +30,7 @@ class Room {
   }
 
   private initRNG() {
-    const seed = this.users.keys().reduce((total, current) => total + current) + this.id
+    const seed = [...this.users.keys()].reduce((total, current) => total + current) + this.id
 
     this.rng = new DiceRNG(seed, this.id)
   }
@@ -37,7 +38,7 @@ class Room {
   public async addUser(id: string, ws: WebSocket) {
     this.users.set(id, ws)
 
-    const info = await db.getUser(id)
+    const info = (ObjectId.isValid(id) && await db.getUser(id)) || null
 
     this.usersInfo.set(id, info)
 
@@ -65,13 +66,15 @@ class Room {
     return this.id;
   }
 
-  private broadcast(type: string, data: string) {
+  private broadcast(type: string, data: any) {
+    data.type = type
+
     this.users.forEach((ws, id) => {
       ws.send(data)
     })
   }
 
-  private async startGame() {
+  private startGame() {
     const playerStartIndex = this.rng.getStart()
 
     const users = this.users.keys()
@@ -79,14 +82,13 @@ class Room {
     const playerStart = users.find((_key, i) => i == playerStartIndex)
 
     const data = {
-      type: "game-start",
       body: {
         playerStart: playerStart,
         diceCheck: JSON.stringify(this.rng.getRolls(10)) // Borrar luego
       }
     }
 
-    this.broadcast("game-start", JSON.stringify(data))
+    this.broadcast("game-start", data)
   }
 }
 
@@ -99,6 +101,8 @@ function closeTimeout(uuid: string, clients: Map<string, WebSocket>) {
   }))
 
   ws?.close()
+
+  pings.delete(uuid)
 
   clients.delete(uuid)
 }
@@ -150,6 +154,7 @@ const responseCommands: Record<string, CommandHandler> = {
       ws?.close()
 
       clients.delete(data.from)
+      return
     }
 
     ws?.send(JSON.stringify({
@@ -160,6 +165,12 @@ const responseCommands: Record<string, CommandHandler> = {
     clients.delete(data.from)
     clients.set(tokenData.id, ws!)
 
+    clearTimeout(pings.get(data.from))
+
+    pings.set(tokenData.id, setTimeout(() => {
+      closeTimeout(data.from, clients);
+    }, 6000));
+
     return tokenData.id
   },
 
@@ -169,7 +180,7 @@ const responseCommands: Record<string, CommandHandler> = {
     }, 6000));
   },
 
-  "matchmaking-search": (data, clients) => {
+  "matchmaking-search": async (data, clients) => {
     const ws = clients.get(data.from)
 
     ws?.send(JSON.stringify({
@@ -178,7 +189,7 @@ const responseCommands: Record<string, CommandHandler> = {
     }))
 
     let roomFound = false;
-    rooms.forEach((room, id) => {
+    rooms.forEach(async (room, id) => {
       if (!room.isPublic()) return
       if (room.getUsersLength() == 2) return
 
@@ -188,15 +199,15 @@ const responseCommands: Record<string, CommandHandler> = {
       //   body: { "id": id, "message": "Uniendose a partida" }
       // }))
 
-      room.addUser(data.from, ws!)
+      await room.addUser(data.from, ws!)
 
-      clientsRoom.set(data.from, id)
+      clientsRoom.set(data.from, id) 
     })
 
     if (!roomFound) {
       const room = new Room()
 
-      room.addUser(data.from, ws!)
+      await room.addUser(data.from, ws!)
 
       rooms.set(room.getId(), room)
 

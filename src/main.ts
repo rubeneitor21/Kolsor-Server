@@ -10,6 +10,11 @@ import * as jwt from "jsonwebtoken";
 const PORT = process.env.PORT || 3000
 const logger = Logger.getLogger()
 
+if (!process.env.JWT_SECRET) {
+  logger.error("Debes usar un secret en .env")
+  process.exit(1)
+}
+
 const db = Database.getDatabase();
 
 (async () => await db.init())()
@@ -37,8 +42,8 @@ const wss = new WebSocketServer({ server })
 
 const clients: Map<string, WebSocket> = new Map()
 
-wss.on("connection", (ws: WebSocket, req: http.IncomingMessage) => {
-  let token = req.headers.cookie?.split(" ")[0]?.split("=")[1]
+wss.on("connection", async (ws: WebSocket, req: http.IncomingMessage) => {
+  let token = req.headers.cookie?.split("; ").find(c => c.startsWith("token="))?.split("=")[1]
   let data
   try {
     data = jwt.verify(token!, process.env.JWT_SECRET || "temp1234") as any
@@ -46,18 +51,19 @@ wss.on("connection", (ws: WebSocket, req: http.IncomingMessage) => {
   catch (e) { }
 
   let uuid = data?.id || randomUUID().toString()
+  const firstUuid = uuid
 
   clients.set(uuid, ws)
 
-  processCommand({ type: "connection", from: uuid }, clients)
+  await processCommand({ type: "connection", from: uuid }, clients)
 
   logger.info(`Client connected: ${uuid}`)
 
-  ws.onmessage = (d: MessageEvent) => {
+  ws.onmessage = async (d: MessageEvent) => {
     let msg = JSON.parse(d.data) as CommandData
 
     msg.from = uuid
-    let newuuid = processCommand(msg, clients)
+    let newuuid = await processCommand(msg, clients)
    
     // De momento es el unico evento que devuelve algo
     if (typeof newuuid === "string") {
@@ -68,6 +74,7 @@ wss.on("connection", (ws: WebSocket, req: http.IncomingMessage) => {
 
   ws.onclose = (_e: CloseEvent) => {
     clients.delete(uuid)
+    clients.delete(firstUuid)
     logger.info(`Client disconnected: ${uuid}`)
   }
 })
