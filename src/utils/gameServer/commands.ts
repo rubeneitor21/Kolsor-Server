@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto"
 import * as jwt from "jsonwebtoken";
 import { Database } from "@utils/database";
 import { ObjectId } from "mongodb";
+import { KolsorFace } from "@utils/gameServer/dice";
 
 let pings = new Map<string, NodeJS.Timeout>()
 let logger: Logger = Logger.getLogger()
@@ -13,12 +14,17 @@ const db: Database = Database.getDatabase();
 class Room {
   private id: string;
   private users: Map<string, WebSocket> = new Map();
-  private state: string = "";
+  private state: any = {
+    "state": "not-started"
+  };
   private private: boolean = false;
   private code: string = "";
   private rng!: DiceRNG;
 
   private usersInfo: Map<String, any> = new Map();
+
+  private playerStart: string = ""
+  private playerSecond: string = ""
 
   constructor(code?: string) {
     this.id = randomUUID()
@@ -73,16 +79,166 @@ class Room {
     })
   }
 
+  public updateRolls(user: string, rolls: any) {
+    if (this.state.activePlayer != user || this.state.state != "select-rolls") return;
+
+    // Deberia verificar que los dados esten en la pool
+
+    this.state.users[user].selectedRolls.push(rolls)
+
+    let totalSelects = 0;
+    this.users.forEach((_v, user) => {
+      totalSelects += this.state.users[user].selectedRolls.length
+    })
+
+    if (totalSelects == 12) this.godFavor()
+    else {
+      if (this.state.activePlayer === this.playerSecond) {
+        if (this.state.round === 3) {
+          this.godFavor()
+        }
+        else this.state.round++
+      }
+      this.state.activePlayer = this.state.activePlayer === this.playerStart ? this.playerSecond : this.playerStart
+
+      const newRolls: any = {
+        body: {}
+      }
+
+      newRolls.body.rolls = this.rng.getRolls(6 - (this.state?.selectedRolls[this.state.activePlayer]?.length || 0))
+      newRolls.user = this.state.activePlayer
+      newRolls.state = this.state;
+
+      this.broadcast("game-rolls", newRolls)
+    }
+  }
+
+  private godFavor() {
+    this.state.state = "god-favor"
+    this.state.rounds = 0
+
+    const data: any = {
+      body: {
+        "state": this.state
+      }
+    }
+
+    this.broadcast("god-favor", data)
+  }
+
+  public updateGodFavor(user: string, favor: string) {
+    if (this.state.state != "god-favor") return;
+
+    this.state.users[user].godFavor = favor
+
+    let seleccionados = true
+    this.users.forEach((_v, user1) => {
+      seleccionados = this.state.users[user1].godFavor != ""
+    })
+
+    if (seleccionados) {
+      this.resolution()
+    }
+  }
+
+  private resolution() {
+    // Activar favores
+
+    // Parsear dados 
+    let resolutionState: any = {}
+
+    this.users.forEach((_v, user) => {
+      this.state.users[user].selectedRolls.forEach((roll: any) => {
+        resolutionState[user] = {
+          aDistancia: 0,
+          dDistancia: 0,
+          aMelee: 0,
+          dMelee: 0,
+          steal: 0
+        }
+
+        if (roll.energy) this.state.users[user].energy++
+
+        if (roll.face == KolsorFace.AXE) resolutionState[user].aMelee++
+        else if (roll.face == KolsorFace.ARROW) resolutionState[user].aDistancia++
+        else if (roll.face == KolsorFace.SHIELD) resolutionState[user].dMelee++
+        else if (roll.face == KolsorFace.HELMET) resolutionState[user].dDistancia++
+
+        else if (roll.face == KolsorFace.HAND) resolutionState[user].steal++
+      });
+    })
+
+    // atacar
+
+    // Primero
+    let energySteal = Math.min(0, this.state.users[this.playerSecond].energy - resolutionState[this.playerStart].steal)
+    this.state.users[this.playerSecond].energy - energySteal
+    this.state.users[this.playerStart].energy + energySteal
+
+    let damageDistancia = Math.max(0, resolutionState[this.playerStart].aDistancia - resolutionState[this.playerSecond].dDistancia)
+    let damageMelee = Math.max(0, resolutionState[this.playerStart].aMelee - resolutionState[this.playerSecond].dMelee)
+
+    this.state.users[this.playerSecond].life -= (damageDistancia + damageMelee)
+
+    this.broadcast("resolution-attack-first", {
+      body: { "state": this.state }
+    })
+
+    if (this.state.users[this.playerSecond].life <= 0) {
+      // Terminar partida
+    }
+
+    // Segundo
+    energySteal = Math.min(0, this.state.users[this.playerStart].energy - resolutionState[this.playerSecond].steal)
+    this.state.users[this.playerStart].energy - energySteal
+    this.state.users[this.playerSecond].energy + energySteal
+
+    damageDistancia = Math.max(0, resolutionState[this.playerSecond].aDistancia - resolutionState[this.playerStart].dDistancia)
+    damageDistancia = Math.max(0, resolutionState[this.playerSecond].aMelee - resolutionState[this.playerStart].dMelee)
+
+    this.state.users[this.playerStart].life -= (damageDistancia + damageMelee)
+
+    this.broadcast("resolution-attack-second", {
+      body: { "state": this.state }
+    })
+
+    if (this.state.users[this.playerStart].life <= 0) {
+      // Terminar partida
+    }
+
+    this.state.state = "select-rolls"
+    this.state.round = 0
+
+    this.users.forEach((_v, user) => {
+      this.state.users[user].selectedRolls = []
+      this.state.users[user].godFavor = ""
+    })
+
+    const tempPlayer = this.playerStart
+    this.playerStart = this.playerSecond
+    this.playerSecond = tempPlayer
+
+    const newRolls: any = {
+      body: {}
+    }
+
+    newRolls.body.rolls = this.rng.getRolls(6 - (this.state?.selectedRolls[this.state.activePlayer]?.length || 0))
+    newRolls.user = this.state.activePlayer
+    newRolls.state = this.state;
+
+    this.broadcast("game-rolls", newRolls)
+  }
+
   private startGame() {
     const playerStartIndex = this.rng.getStart()
 
     const users = this.users.keys()
 
-    const playerStart = users.find((_key, i) => i == playerStartIndex)
+    this.playerStart = users.find((_key, i) => i == playerStartIndex) || ""
 
-    let playerInfo:any = []
+    let playerInfo: any = []
 
-    this.usersInfo.forEach((v,k) => {
+    this.usersInfo.forEach((v, k) => {
       playerInfo.push({
         id: k,
         username: v.username
@@ -91,7 +247,7 @@ class Room {
 
     const data = {
       body: {
-        playerStart: playerStart,
+        playerStart: this.playerStart,
         players: playerInfo
       }
     }
@@ -100,12 +256,28 @@ class Room {
       body: {}
     }
 
-    this.usersInfo.forEach((v,k: any) => {
-      rolls.body[k] = this.rng.getRolls(10)
+    rolls.body.rolls = this.rng.getRolls(6 - (this.state?.selectedRolls[this.playerStart!]?.length || 0))
+    rolls.user = this.playerStart
+
+    let usersState: any = {}
+    this.users.forEach((_v, user) => {
+      usersState[user] = {
+        "energy": 0,
+        "life": 15,
+        "selectedRolls": [],
+        "godFavor": ""
+      }
     })
-  
+
     this.broadcast("game-start", data)
     this.broadcast("game-rolls", rolls)
+
+    this.state = {
+      "state": "select-rolls",
+      "round": 1,
+      "users": usersState,
+      "activePlayer": this.playerStart
+    }
   }
 }
 
@@ -125,7 +297,7 @@ function closeTimeout(uuid: string, clients: Map<string, WebSocket>) {
 }
 
 const rooms: Map<string, Room> = new Map()
-const clientsRoom: Map<string, string> = new Map() // Es un poco de duplicar pero al final hace las busquedas mas rapidas y queda mas limpio
+const clientsRoom: Map<string, Room> = new Map() // Es un poco de duplicar pero al final hace las busquedas mas rapidas y queda mas limpio
 
 const responseCommands: Record<string, CommandHandler> = {
   "ping": (data, clients) => {
@@ -219,18 +391,33 @@ const responseCommands: Record<string, CommandHandler> = {
 
       await room.addUser(data.from, ws!)
 
-      clientsRoom.set(data.from, id) 
+      clientsRoom.set(data.from, room)
     })
 
     if (!roomFound) {
       const room = new Room()
 
-      await room.addUser(data.from, ws!)
-
       rooms.set(room.getId(), room)
 
-      clientsRoom.set(data.from, room.getId())
+      clientsRoom.set(data.from, room)
+
+      await room.addUser(data.from, ws!)
     }
+  },
+
+  // partida
+  "select-rolls": (data, clients) => {
+    const room = clientsRoom.get(data.from)
+    if (!room) return
+
+    room.updateRolls(data.from, data.body.rolls)
+  },
+
+  "select-favor": (data, clients) => {
+    const room = clientsRoom.get(data.from)
+    if (!room) return
+
+    room.updateGodFavor(data.from, data.body.favor)
   }
 };
 

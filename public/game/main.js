@@ -81,7 +81,7 @@
     searchButton.value = "Conectando"
 
     await new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => reject("Timeout connecting to ws"), 3000)
+      const timeout = setTimeout(() => reject("Timeout connecting to ws"), 10000)
 
       const interval = setInterval(() => {
         if (authed) {
