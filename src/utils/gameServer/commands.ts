@@ -212,7 +212,7 @@ class Room {
     }
 
     this.state.state = "select-rolls"
-    this.state.round = 0
+    this.state.round = 1
 
     this.users.forEach((_v, user) => {
       this.state.users[user].selectedRolls = []
@@ -240,7 +240,7 @@ class Room {
     const users = this.users.keys()
 
     this.playerStart = users.find((_key, i) => i == playerStartIndex) || ""
-    this.playerSecond = users.find(key => key !== this.playerStart) || ""
+    this.playerSecond = [...this.users.keys()].find(key => key !== this.playerStart) || ""
 
     let playerInfo: any = []
 
