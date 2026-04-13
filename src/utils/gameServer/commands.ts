@@ -105,7 +105,7 @@ class Room {
         body: {}
       }
 
-      newRolls.body.rolls = this.rng.getRolls(6 - (this.state?.selectedRolls[this.state.activePlayer]?.length || 0))
+      newRolls.body.rolls = this.rng.getRolls(6 - (this.state?.users[this.state.activePlayer].selectedRolls.length || 0))
       newRolls.user = this.state.activePlayer
       newRolls.state = this.state;
 
@@ -148,15 +148,14 @@ class Room {
     let resolutionState: any = {}
 
     this.users.forEach((_v, user) => {
+      resolutionState[user] = {
+        aDistancia: 0,
+        dDistancia: 0,
+        aMelee: 0,
+        dMelee: 0,
+        steal: 0
+      }
       this.state.users[user].selectedRolls.forEach((roll: any) => {
-        resolutionState[user] = {
-          aDistancia: 0,
-          dDistancia: 0,
-          aMelee: 0,
-          dMelee: 0,
-          steal: 0
-        }
-
         if (roll.energy) this.state.users[user].energy++
 
         if (roll.face == KolsorFace.AXE) resolutionState[user].aMelee++
@@ -171,9 +170,9 @@ class Room {
     // atacar
 
     // Primero
-    let energySteal = Math.min(0, this.state.users[this.playerSecond].energy - resolutionState[this.playerStart].steal)
-    this.state.users[this.playerSecond].energy - energySteal
-    this.state.users[this.playerStart].energy + energySteal
+    let energySteal = Math.min(this.state.users[this.playerSecond].energy, resolutionState[this.playerStart].steal)
+    this.state.users[this.playerSecond].energy -= energySteal
+    this.state.users[this.playerStart].energy += energySteal
 
     let damageDistancia = Math.max(0, resolutionState[this.playerStart].aDistancia - resolutionState[this.playerSecond].dDistancia)
     let damageMelee = Math.max(0, resolutionState[this.playerStart].aMelee - resolutionState[this.playerSecond].dMelee)
@@ -185,16 +184,18 @@ class Room {
     })
 
     if (this.state.users[this.playerSecond].life <= 0) {
-      // Terminar partida
+      this.broadcast("game-over", {
+        body: {winner: this.playerStart}
+      }) 
     }
 
     // Segundo
-    energySteal = Math.min(0, this.state.users[this.playerStart].energy - resolutionState[this.playerSecond].steal)
-    this.state.users[this.playerStart].energy - energySteal
-    this.state.users[this.playerSecond].energy + energySteal
+    energySteal = Math.min(this.state.users[this.playerStart].energy, resolutionState[this.playerSecond].steal)
+    this.state.users[this.playerStart].energy -= energySteal
+    this.state.users[this.playerSecond].energy += energySteal
 
     damageDistancia = Math.max(0, resolutionState[this.playerSecond].aDistancia - resolutionState[this.playerStart].dDistancia)
-    damageDistancia = Math.max(0, resolutionState[this.playerSecond].aMelee - resolutionState[this.playerStart].dMelee)
+    damageMelee = Math.max(0, resolutionState[this.playerSecond].aMelee - resolutionState[this.playerStart].dMelee)
 
     this.state.users[this.playerStart].life -= (damageDistancia + damageMelee)
 
@@ -203,7 +204,9 @@ class Room {
     })
 
     if (this.state.users[this.playerStart].life <= 0) {
-      // Terminar partida
+      this.broadcast("game-over", {
+        body: {winner: this.playerSecond}
+      }) 
     }
 
     this.state.state = "select-rolls"
@@ -222,7 +225,7 @@ class Room {
       body: {}
     }
 
-    newRolls.body.rolls = this.rng.getRolls(6 - (this.state?.selectedRolls[this.state.activePlayer]?.length || 0))
+    newRolls.body.rolls = this.rng.getRolls(6 - (this.state?.users[this.state.activePlayer].selectedRolls.length || 0))
     newRolls.user = this.state.activePlayer
     newRolls.state = this.state;
 
@@ -235,6 +238,7 @@ class Room {
     const users = this.users.keys()
 
     this.playerStart = users.find((_key, i) => i == playerStartIndex) || ""
+    this.playerSecond = users.find(key => key !== this.playerStart) || ""
 
     let playerInfo: any = []
 
@@ -256,7 +260,7 @@ class Room {
       body: {}
     }
 
-    rolls.body.rolls = this.rng.getRolls(6 - (this.state?.selectedRolls[this.playerStart!]?.length || 0))
+    rolls.body.rolls = this.rng.getRolls(6 - (this.state?.users[this.state.activePlayer]?.selectedRolls?.length || 0))
     rolls.user = this.playerStart
 
     let usersState: any = {}
@@ -379,20 +383,13 @@ const responseCommands: Record<string, CommandHandler> = {
     }))
 
     let roomFound = false;
-    rooms.forEach(async (room, id) => {
-      if (!room.isPublic()) return
-      if (room.getUsersLength() == 2) return
-
+    for (const [id, room] of rooms) {
+      if (!room.isPublic() || room.getUsersLength() == 2) continue
       roomFound = true
-      // ws?.send(JSON.stringify({
-      //   type: "matchmaking-join",
-      //   body: { "id": id, "message": "Uniendose a partida" }
-      // }))
-
       await room.addUser(data.from, ws!)
-
       clientsRoom.set(data.from, room)
-    })
+      break
+    }
 
     if (!roomFound) {
       const room = new Room()
