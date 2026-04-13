@@ -91,7 +91,7 @@ class Room {
       totalSelects += this.state.users[user].selectedRolls.length
     })
 
-    if (totalSelects == 12) this.godFavor()
+    if (totalSelects >= 12) this.godFavor()
     else {
       if (this.state.activePlayer === this.playerSecond) {
         if (this.state.round === 3) {
@@ -115,7 +115,7 @@ class Room {
 
   private godFavor() {
     this.state.state = "god-favor"
-    this.state.rounds = 0
+    this.state.round = 0
 
     const data: any = {
       body: {
@@ -222,6 +222,7 @@ class Room {
     const tempPlayer = this.playerStart
     this.playerStart = this.playerSecond
     this.playerSecond = tempPlayer
+    this.state.activePlayer = this.playerStart
 
     const newRolls: any = {
       body: {}
@@ -260,10 +261,7 @@ class Room {
 
     const rolls: any = {
       body: {}
-    }
-
-    rolls.body.rolls = this.rng.getRolls(6 - (this.state?.users[this.state.activePlayer]?.selectedRolls?.length || 0))
-    rolls.user = this.playerStart
+    } 
 
     let usersState: any = {}
     this.users.forEach((_v, user) => {
@@ -275,15 +273,18 @@ class Room {
       }
     })
 
-    this.broadcast("game-start", data)
-    this.broadcast("game-rolls", rolls)
-
     this.state = {
       "state": "select-rolls",
       "round": 1,
       "users": usersState,
       "activePlayer": this.playerStart
     }
+
+    rolls.body.rolls = this.rng.getRolls(6 - (this.state?.users[this.state.activePlayer]?.selectedRolls?.length || 0))
+    rolls.user = this.playerStart
+    
+    this.broadcast("game-start", data)
+    this.broadcast("game-rolls", rolls)
   }
 }
 
