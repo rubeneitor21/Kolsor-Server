@@ -186,7 +186,8 @@ class Room {
     if (this.state.users[this.playerSecond].life <= 0) {
       this.broadcast("game-over", {
         body: {winner: this.playerStart}
-      }) 
+      })
+      return
     }
 
     // Segundo
@@ -206,7 +207,8 @@ class Room {
     if (this.state.users[this.playerStart].life <= 0) {
       this.broadcast("game-over", {
         body: {winner: this.playerSecond}
-      }) 
+      })
+      return
     }
 
     this.state.state = "select-rolls"
