@@ -26,6 +26,8 @@ class Room {
   private playerStart: string = ""
   private playerSecond: string = ""
 
+  private lastGameRolls: DiceResult[] = []
+
   constructor(code?: string) {
     this.id = randomUUID()
 
@@ -79,10 +81,32 @@ class Room {
     })
   }
 
-  public updateRolls(user: string, rolls: any) {
+  private isSubset(mainRolls: DiceResult[], selectedRolls: DiceResult[]): boolean {
+    const counts = new Map<string, number>();
+
+    for (const roll of mainRolls) {
+      const key = `${roll.face}-${roll.energy}`;
+      counts.set(key, (counts.get(key) || 0) + 1);
+    }
+
+    for (const roll of selectedRolls) {
+      const key = `${roll.face}-${roll.energy}`;
+      const currentCount = counts.get(key) || 0;
+
+      if (currentCount <= 0) {
+        return false;
+      }
+
+      counts.set(key, currentCount - 1);
+    }
+
+    return true;
+  }
+
+  public updateRolls(user: string, rolls: DiceResult[]) {
     if (this.state.activePlayer != user || this.state.state != "select-rolls") return;
 
-    // Deberia verificar que los dados esten en la pool
+    if (!this.isSubset(this.lastGameRolls, this.state.users[user].selectedRolls)) return;
 
     this.state.users[user].selectedRolls.push(rolls)
 
@@ -108,6 +132,8 @@ class Room {
       newRolls.body.rolls = this.rng.getRolls(6 - (this.state?.users[this.state.activePlayer].selectedRolls.length || 0))
       newRolls.user = this.state.activePlayer
       newRolls.state = this.state;
+
+      this.lastGameRolls = newRolls.body.rolls
 
       this.broadcast("game-rolls", newRolls)
     }
@@ -155,7 +181,7 @@ class Room {
         dMelee: 0,
         steal: 0
       }
-      this.state.users[user].selectedRolls.forEach((roll: any) => {
+      this.state.users[user].selectedRolls.forEach((roll: DiceResult) => {
         if (roll.energy) this.state.users[user].energy++
 
         if (roll.face == KolsorFace.AXE) resolutionState[user].aMelee++
@@ -185,7 +211,7 @@ class Room {
 
     if (this.state.users[this.playerSecond].life <= 0) {
       this.broadcast("game-over", {
-        body: {winner: this.playerStart}
+        body: { winner: this.playerStart }
       })
       return
     }
@@ -206,7 +232,7 @@ class Room {
 
     if (this.state.users[this.playerStart].life <= 0) {
       this.broadcast("game-over", {
-        body: {winner: this.playerSecond}
+        body: { winner: this.playerSecond }
       })
       return
     }
@@ -261,7 +287,7 @@ class Room {
 
     const rolls: any = {
       body: {}
-    } 
+    }
 
     let usersState: any = {}
     this.users.forEach((_v, user) => {
@@ -282,7 +308,9 @@ class Room {
 
     rolls.body.rolls = this.rng.getRolls(6 - (this.state?.users[this.state.activePlayer]?.selectedRolls?.length || 0))
     rolls.user = this.playerStart
-    
+
+    this.lastGameRolls = rolls.body.rolls
+
     this.broadcast("game-start", data)
     this.broadcast("game-rolls", rolls)
   }

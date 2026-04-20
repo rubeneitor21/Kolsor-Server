@@ -33,6 +33,8 @@ export class Database {
         "username": user.username,
         "password": await bcrypt.hash(user.password, this.SALT_ROUNDS),
         "level": 1,
+        "exp": 0,
+        "level-exp": 100,
         "stats": { "wins": 0, "losses": 0, "disconnections": 0 },
         "createdAt": new Date()
       }
@@ -71,7 +73,7 @@ export class Database {
 
       const token = jwt.sign(
         { id: user?._id.toString(), username: user?.username },
-        process.env.JWT_SECRET || "temp1234",
+        process.env.JWT_SECRET!,
         { expiresIn: '24h' }
       );
 
