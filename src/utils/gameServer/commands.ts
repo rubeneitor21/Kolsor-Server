@@ -14,8 +14,18 @@ const db: Database = Database.getDatabase();
 class Room {
   private id: string;
   private users: Map<string, WebSocket> = new Map();
-  private state: any = {
-    "state": "not-started"
+  private state: RoomPhase = {
+    state: "not-started",
+    round: 0,
+    activePlayer: "",
+    users: {
+      "user": {
+        energy: 0,
+        life: 15,
+        selectedRolls: [],
+        godFavor: ""
+      }
+    }
   };
   private private: boolean = false;
   private code: string = "";
@@ -106,20 +116,21 @@ class Room {
   public updateRolls(user: string, rolls: DiceResult[]) {
     if (this.state.activePlayer != user || this.state.state != "select-rolls") return;
 
-    if (!this.isSubset(this.lastGameRolls, this.state.users[user].selectedRolls)) return;
+    if (!this.isSubset(this.lastGameRolls, rolls)) return;
 
-    this.state.users[user].selectedRolls.push(rolls)
+    this.state.users[user]?.selectedRolls.push(...rolls)
 
     let totalSelects = 0;
     this.users.forEach((_v, user) => {
-      totalSelects += this.state.users[user].selectedRolls.length
+      totalSelects += this.state.users[user]!.selectedRolls.length
     })
 
-    if (totalSelects >= 12) this.godFavor()
+    if (totalSelects >= 12) { this.godFavor(); return; }
     else {
       if (this.state.activePlayer === this.playerSecond) {
         if (this.state.round === 3) {
           this.godFavor()
+          return
         }
         else this.state.round++
       }
@@ -129,7 +140,7 @@ class Room {
         body: {}
       }
 
-      newRolls.body.rolls = this.rng.getRolls(6 - (this.state?.users[this.state.activePlayer].selectedRolls.length || 0))
+      newRolls.body.rolls = this.rng.getRolls(6 - (this.state?.users[this.state.activePlayer]?.selectedRolls.length || 0))
       newRolls.user = this.state.activePlayer
       newRolls.state = this.state;
 
@@ -155,11 +166,11 @@ class Room {
   public updateGodFavor(user: string, favor: string) {
     if (this.state.state != "god-favor") return;
 
-    this.state.users[user].godFavor = favor
+    this.state.users[user]!.godFavor = favor
 
     let seleccionados = true
     this.users.forEach((_v, user1) => {
-      seleccionados = this.state.users[user1].godFavor != ""
+      seleccionados = seleccionados && (this.state.users[user1]?.godFavor != "")
     })
 
     if (seleccionados) {
@@ -181,8 +192,8 @@ class Room {
         dMelee: 0,
         steal: 0
       }
-      this.state.users[user].selectedRolls.forEach((roll: DiceResult) => {
-        if (roll.energy) this.state.users[user].energy++
+      this.state.users[user]?.selectedRolls.forEach((roll: DiceResult) => {
+        if (roll.energy) this.state.users[user]!.energy++
 
         if (roll.face == KolsorFace.AXE) resolutionState[user].aMelee++
         else if (roll.face == KolsorFace.ARROW) resolutionState[user].aDistancia++
@@ -196,20 +207,20 @@ class Room {
     // atacar
 
     // Primero
-    let energySteal = Math.min(this.state.users[this.playerSecond].energy, resolutionState[this.playerStart].steal)
-    this.state.users[this.playerSecond].energy -= energySteal
-    this.state.users[this.playerStart].energy += energySteal
+    let energySteal = Math.min(this.state.users[this.playerSecond]!.energy, resolutionState[this.playerStart].steal)
+    this.state.users[this.playerSecond]!.energy -= energySteal
+    this.state.users[this.playerStart]!.energy += energySteal
 
     let damageDistancia = Math.max(0, resolutionState[this.playerStart].aDistancia - resolutionState[this.playerSecond].dDistancia)
     let damageMelee = Math.max(0, resolutionState[this.playerStart].aMelee - resolutionState[this.playerSecond].dMelee)
 
-    this.state.users[this.playerSecond].life -= (damageDistancia + damageMelee)
+    this.state.users[this.playerSecond]!.life -= (damageDistancia + damageMelee)
 
     this.broadcast("resolution-attack-first", {
       body: { "state": this.state }
     })
 
-    if (this.state.users[this.playerSecond].life <= 0) {
+    if (this.state.users[this.playerSecond]!.life <= 0) {
       this.broadcast("game-over", {
         body: { winner: this.playerStart }
       })
@@ -217,20 +228,20 @@ class Room {
     }
 
     // Segundo
-    energySteal = Math.min(this.state.users[this.playerStart].energy, resolutionState[this.playerSecond].steal)
-    this.state.users[this.playerStart].energy -= energySteal
-    this.state.users[this.playerSecond].energy += energySteal
+    energySteal = Math.min(this.state.users[this.playerStart]!.energy, resolutionState[this.playerSecond].steal)
+    this.state.users[this.playerStart]!.energy -= energySteal
+    this.state.users[this.playerSecond]!.energy += energySteal
 
     damageDistancia = Math.max(0, resolutionState[this.playerSecond].aDistancia - resolutionState[this.playerStart].dDistancia)
     damageMelee = Math.max(0, resolutionState[this.playerSecond].aMelee - resolutionState[this.playerStart].dMelee)
 
-    this.state.users[this.playerStart].life -= (damageDistancia + damageMelee)
+    this.state.users[this.playerStart]!.life -= (damageDistancia + damageMelee)
 
     this.broadcast("resolution-attack-second", {
       body: { "state": this.state }
     })
 
-    if (this.state.users[this.playerStart].life <= 0) {
+    if (this.state.users[this.playerStart]!.life <= 0) {
       this.broadcast("game-over", {
         body: { winner: this.playerSecond }
       })
@@ -241,8 +252,8 @@ class Room {
     this.state.round = 1
 
     this.users.forEach((_v, user) => {
-      this.state.users[user].selectedRolls = []
-      this.state.users[user].godFavor = ""
+      this.state.users[user]!.selectedRolls = []
+      this.state.users[user]!.godFavor = ""
     })
 
     const tempPlayer = this.playerStart
@@ -254,9 +265,11 @@ class Room {
       body: {}
     }
 
-    newRolls.body.rolls = this.rng.getRolls(6 - (this.state?.users[this.state.activePlayer].selectedRolls.length || 0))
+    newRolls.body.rolls = this.rng.getRolls(6 - (this.state?.users[this.state.activePlayer]?.selectedRolls.length || 0))
     newRolls.user = this.state.activePlayer
     newRolls.state = this.state;
+
+    this.lastGameRolls = newRolls.body.rolls
 
     this.broadcast("game-rolls", newRolls)
   }
@@ -266,7 +279,7 @@ class Room {
 
     const users = this.users.keys()
 
-    this.playerStart = users.find((_key, i) => i == playerStartIndex) || ""
+    this.playerStart = [...users].find((_key, i) => i == playerStartIndex) || ""
     this.playerSecond = [...this.users.keys()].find(key => key !== this.playerStart) || ""
 
     let playerInfo: any = []
