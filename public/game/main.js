@@ -5,6 +5,8 @@
   let userId = null
   let playerStart = null
   let players = []
+  let activePlayer = null
+  let selectedRolls = []
 
   const username = document.querySelector("#username").innerHTML
   const userIdElement = document.querySelector("#id")
@@ -79,7 +81,8 @@
       }
 
       if (data.type === "game-rolls") {
-        showRolls(data.body.rolls)
+        activePlayer = data.user;
+        showRolls(data.body.rolls, data.user);
       }
 
       if (data.type === "god-favor") {
@@ -107,14 +110,73 @@
     }
   }
 
-  function showRolls(rolls) {
+  function showRolls(rolls, user) {
     let rollsDiv = document.querySelector("#rolls")
     rollsDiv.innerHTML = "<br>Tiradas:<br>"
     
+    // Si no es el jugador activo, mostrar mensaje de espera
+    if (user !== userId) {
+      rollsDiv.innerHTML = "<br>Esperando que el jugador seleccione dados<br>"
+      return;
+    }
+    
     rolls.forEach(roll => {
       const diceClass = roll.energy ? "dice energy" : `dice ${roll.face.toLowerCase()}`
-      rollsDiv.innerHTML += `<div class="${diceClass}">${roll.face}</div>`
+      rollsDiv.innerHTML += `<div class="${diceClass}" onclick="selectRoll(this)">${roll.face}</div>`
     })
+  }
+
+  function selectRoll(diceElement) {
+    // Solo permitir selección si es el jugador activo
+    if (activePlayer !== userId) return;
+    
+    const face = diceElement.textContent;
+    const isEnergy = diceElement.classList.contains("energy");
+    
+    // Crear objeto de dado seleccionado
+    const selectedRoll = {
+      face: face,
+      energy: isEnergy
+    };
+    
+    // Añadir a la lista de dados seleccionados
+    selectedRolls.push(selectedRoll);
+    
+    // Marcar el dado como seleccionado visualmente
+    diceElement.classList.add("selected");
+    
+    // Actualizar la sección de dados seleccionados
+    updateSelectedRolls();
+    
+    // Si se han seleccionado 6 dados, enviar al servidor
+    if (selectedRolls.length === 6) {
+      sendSelectedRolls();
+    }
+  }
+
+  function updateSelectedRolls() {
+    const selectedRollsDiv = document.querySelector("#selected-rolls");
+    selectedRollsDiv.innerHTML = "<br>Dados seleccionados:<br>";
+    
+    selectedRolls.forEach(roll => {
+      const diceClass = roll.energy ? "dice energy" : `dice ${roll.face.toLowerCase()}`
+      selectedRollsDiv.innerHTML += `<div class="${diceClass}">${roll.face}</div>`
+    });
+  }
+
+  function sendSelectedRolls() {
+    ws.send(JSON.stringify({
+      type: "select-rolls",
+      body: {
+        rolls: selectedRolls
+      }
+    }));
+    
+    // Limpiar selección
+    selectedRolls = [];
+    document.querySelectorAll("#rolls .dice").forEach(dice => {
+      dice.classList.remove("selected");
+    });
   }
 
   function showGodFavor() {
