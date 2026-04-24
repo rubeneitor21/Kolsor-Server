@@ -171,6 +171,13 @@
       
       rollsDiv.appendChild(diceDiv);
     })
+    
+    // Añadir botón para confirmar selección parcial
+    const confirmButton = document.createElement("button");
+    confirmButton.id = "confirm-rolls";
+    confirmButton.textContent = "Confirmar selección";
+    confirmButton.addEventListener("click", sendSelectedRolls);
+    rollsDiv.appendChild(confirmButton);
   }
 
   function updateSelectedRolls() {
@@ -208,6 +215,9 @@
   }
 
   function sendSelectedRolls() {
+    // Si no hay dados seleccionados, no hacer nada
+    if (selectedRolls.length === 0) return;
+    
     ws.send(JSON.stringify({
       type: "select-rolls",
       body: {
@@ -220,6 +230,12 @@
     document.querySelectorAll("#rolls .dice").forEach(dice => {
       dice.classList.remove("selected");
     });
+    
+    // Eliminar el botón de confirmación
+    const confirmButton = document.querySelector("#confirm-rolls");
+    if (confirmButton) {
+      confirmButton.remove();
+    }
   }
 
   function showGodFavor() {
