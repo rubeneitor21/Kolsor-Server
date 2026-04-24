@@ -91,12 +91,12 @@
       }
 
       if (data.type === "resolution-attack-first") {
-        updateCombatLog(`¡Ataque del primer jugador! Daño: ${data.body.damage}`);
+        updateCombatLog(`¡Ataque del primer jugador!`);
         updatePlayerInfo(data.body.state)
       }
 
       if (data.type === "resolution-attack-second") {
-        updateCombatLog(`¡Ataque del segundo jugador! Daño: ${data.body.damage}`);
+        updateCombatLog(`¡Ataque del segundo jugador!`);
         updatePlayerInfo(data.body.state)
       }
 
