@@ -1,9 +1,16 @@
 (() => {
   let ws //= new WebSocket("wss://" + window.location.host)
   let authed = false
+  let currentRoom = null
+  let userId = null
+  let playerStart = null
+  let players = []
 
   const username = document.querySelector("#username").innerHTML
-  const userId = document.querySelector("#id").innerHTML
+  const userIdElement = document.querySelector("#id")
+  if (userIdElement) {
+    userId = userIdElement.innerHTML
+  }
 
   let intervalId;
 
@@ -47,10 +54,14 @@
       }
 
       if (data.type === "game-start") {
-        let playersDiv = document.querySelector("#players")
+        currentRoom = data.body.roomId
+        playerStart = data.body.playerStart
+        players = data.body.players
         
-        let players = data.body.players
-
+        // Mostrar información de jugadores
+        let playersDiv = document.querySelector("#players")
+        playersDiv.innerHTML = ""
+        
         players.forEach((p) => {
           if (p.id === userId) {
             playersDiv.innerHTML += `<div>${p.username} - Tu</div>`
@@ -59,11 +70,34 @@
             playersDiv.innerHTML += `<div>${p.username}</div>`
           }
         })
+        
+        // Mostrar estado del juego
+        document.querySelector("#game-state").textContent = "¡Partida iniciada!"
+        
+        // Mostrar las tiradas iniciales
+        showRolls(data.body.rolls)
       }
 
       if (data.type === "game-rolls") {
-        let rollsDiv = document.querySelector("#rolls")
-        rollsDiv.innerHTML = "<br>Tiradas Test:<br>" + JSON.stringify(data.body.rolls, null, 2)
+        showRolls(data.body.rolls)
+      }
+
+      if (data.type === "god-favor") {
+        showGodFavor()
+      }
+
+      if (data.type === "resolution-attack-first") {
+        updateCombatLog("¡Ataque del primer jugador!")
+        updatePlayerInfo(data.body.state)
+      }
+
+      if (data.type === "resolution-attack-second") {
+        updateCombatLog("¡Ataque del segundo jugador!")
+        updatePlayerInfo(data.body.state)
+      }
+
+      if (data.type === "game-over") {
+        showGameOver(data.body.winner)
       }
     }
 
@@ -71,6 +105,65 @@
       console.log("Conexion cerrada")
       clearInterval(intervalId)
     }
+  }
+
+  function showRolls(rolls) {
+    let rollsDiv = document.querySelector("#rolls")
+    rollsDiv.innerHTML = "<br>Tiradas:<br>"
+    
+    rolls.forEach(roll => {
+      const diceClass = roll.energy ? "dice energy" : `dice ${roll.face.toLowerCase()}`
+      rollsDiv.innerHTML += `<div class="${diceClass}">${roll.face}</div>`
+    })
+  }
+
+  function showGodFavor() {
+    const godFavorDiv = document.querySelector("#god-favor")
+    godFavorDiv.innerHTML = `
+      <div class="god-favor-option" onclick="selectGodFavor('attack')">Ataque</div>
+      <div class="god-favor-option" onclick="selectGodFavor('defense')">Defensa</div>
+      <div class="god-favor-option" onclick="selectGodFavor('steal')">Robo</div>
+    `
+  }
+
+  function updatePlayerInfo(state) {
+    // Actualizar información de los jugadores
+    const playersDiv = document.querySelector("#players")
+    playersDiv.innerHTML = ""
+    
+    Object.keys(state.users).forEach(userId => {
+      const playerInfo = state.users[userId]
+      const player = players.find(p => p.id === userId)
+      const isCurrentPlayer = userId === state.activePlayer
+      
+      let playerText = `${player.username} - Vida: ${playerInfo.life} - Energía: ${playerInfo.energy}`
+      if (isCurrentPlayer) {
+        playerText += " (Tu turno)"
+      }
+      playersDiv.innerHTML += `<div>${playerText}</div>`
+    })
+  }
+
+  function updateCombatLog(message) {
+    const combatLog = document.querySelector("#combat-log")
+    combatLog.innerHTML += `<div>${message}</div>`
+    combatLog.scrollTop = combatLog.scrollHeight
+  }
+
+  function showGameOver(winner) {
+    const gameOverDiv = document.createElement("div")
+    gameOverDiv.id = "game-over"
+    gameOverDiv.innerHTML = `¡Juego terminado! Ganador: ${winner}`
+    document.querySelector("#game-container").appendChild(gameOverDiv)
+  }
+
+  function selectGodFavor(favor) {
+    ws.send(JSON.stringify({
+      type: "select-favor",
+      body: {
+        favor: favor
+      }
+    }))
   }
 
   searchButton.addEventListener("click", async () => {
