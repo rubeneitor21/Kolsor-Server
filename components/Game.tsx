@@ -1,8 +1,7 @@
-import { Layout } from "@components/Layout";
 
 export function Game() {
   return (
-    <Layout>
+    <>
       <div id="game-container">
         <div id="game-info">
           <div id="players"></div>
@@ -18,6 +17,6 @@ export function Game() {
         </div>
       </div>
       <script src="game/main.js" />
-    </Layout>
+    </>
   );
 }
