@@ -29,7 +29,7 @@ npm i && npm run build
 ```
 Then use de compose.yml
 ```bash
-STACK_NAME=kolsor JWT_SECRET=secret MONGO_PASSWORD=password docker compose up -d
+JWT_SECRET=secret MONGO_PASSWORD=password docker compose up -d
 ```
 > [!IMPORTANT]
 Change secret and password with secure secret and password
@@ -40,4 +40,3 @@ You can use the script
 ```bash
 npm start
 ```
-Or run dist/main.js however you prefer

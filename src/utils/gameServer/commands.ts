@@ -18,14 +18,7 @@ class Room {
     state: "not-started",
     round: 0,
     activePlayer: "",
-    users: {
-      "user": {
-        energy: 0,
-        life: 15,
-        selectedRolls: [],
-        godFavor: ""
-      }
-    }
+    users: {}
   };
   private private: boolean = false;
   private code: string = "";
@@ -118,14 +111,27 @@ class Room {
 
     if (!this.isSubset(this.lastGameRolls, rolls)) return;
 
+    // Asegurarse de que el usuario existe en el estado
+    if (!this.state.users[user]) {
+      this.state.users[user] = {
+        energy: 0,
+        life: 15,
+        selectedRolls: [],
+        godFavor: ""
+      };
+    }
+
     this.state.users[user]?.selectedRolls.push(...rolls)
 
     let totalSelects = 0;
     this.users.forEach((_v, user) => {
-      totalSelects += this.state.users[user]!.selectedRolls.length
+      totalSelects += this.state.users[user]?.selectedRolls.length || 0
     })
 
-    if (totalSelects >= 12) { this.godFavor(); return; }
+    if (totalSelects >= 12) { 
+      this.godFavor(); 
+      return; 
+    }
     else {
       if (this.state.activePlayer === this.playerSecond) {
         if (this.state.round === 3) {
@@ -140,7 +146,8 @@ class Room {
         body: {}
       }
 
-      newRolls.body.rolls = this.rng.getRolls(6 - (this.state?.users[this.state.activePlayer]?.selectedRolls.length || 0))
+      const remainingRolls = 6 - (this.state.users[this.state.activePlayer]?.selectedRolls.length || 0)
+      newRolls.body.rolls = this.rng.getRolls(remainingRolls)
       newRolls.user = this.state.activePlayer
       newRolls.state = this.state;
 
@@ -165,6 +172,16 @@ class Room {
 
   public updateGodFavor(user: string, favor: string) {
     if (this.state.state != "god-favor") return;
+
+    // Asegurarse de que el usuario existe en el estado
+    if (!this.state.users[user]) {
+      this.state.users[user] = {
+        energy: 0,
+        life: 15,
+        selectedRolls: [],
+        godFavor: ""
+      };
+    }
 
     this.state.users[user]!.godFavor = favor
 
@@ -192,16 +209,18 @@ class Room {
         dMelee: 0,
         steal: 0
       }
-      this.state.users[user]?.selectedRolls.forEach((roll: DiceResult) => {
-        if (roll.energy) this.state.users[user]!.energy++
+      if (this.state.users[user]?.selectedRolls) {
+        this.state.users[user]?.selectedRolls.forEach((roll: DiceResult) => {
+          if (roll.energy) this.state.users[user]!.energy++
 
-        if (roll.face == KolsorFace.AXE) resolutionState[user].aMelee++
-        else if (roll.face == KolsorFace.ARROW) resolutionState[user].aDistancia++
-        else if (roll.face == KolsorFace.SHIELD) resolutionState[user].dMelee++
-        else if (roll.face == KolsorFace.HELMET) resolutionState[user].dDistancia++
+          if (roll.face == KolsorFace.AXE) resolutionState[user].aMelee++
+          else if (roll.face == KolsorFace.ARROW) resolutionState[user].aDistancia++
+          else if (roll.face == KolsorFace.SHIELD) resolutionState[user].dMelee++
+          else if (roll.face == KolsorFace.HELMET) resolutionState[user].dDistancia++
 
-        else if (roll.face == KolsorFace.HAND) resolutionState[user].steal++
-      });
+          else if (roll.face == KolsorFace.HAND) resolutionState[user].steal++
+        });
+      }
     })
 
     // atacar
@@ -265,7 +284,8 @@ class Room {
       body: {}
     }
 
-    newRolls.body.rolls = this.rng.getRolls(6 - (this.state?.users[this.state.activePlayer]?.selectedRolls.length || 0))
+    const remainingRolls = 6 - (this.state.users[this.state.activePlayer]?.selectedRolls.length || 0)
+    newRolls.body.rolls = this.rng.getRolls(remainingRolls)
     newRolls.user = this.state.activePlayer
     newRolls.state = this.state;
 
@@ -277,17 +297,17 @@ class Room {
   private startGame() {
     const playerStartIndex = this.rng.getStart()
 
-    const users = this.users.keys()
+    const users = [...this.users.keys()]
 
-    this.playerStart = [...users].find((_key, i) => i == playerStartIndex) || ""
-    this.playerSecond = [...this.users.keys()].find(key => key !== this.playerStart) || ""
+    this.playerStart = users.find((_key, i) => i == playerStartIndex) || ""
+    this.playerSecond = users.find(key => key !== this.playerStart) || ""
 
     let playerInfo: any = []
 
     this.usersInfo.forEach((v, k) => {
       playerInfo.push({
         id: k,
-        username: v.username
+        username: v?.username || "Unknown"
       })
     })
 
@@ -302,6 +322,7 @@ class Room {
       body: {}
     }
 
+    // Inicializar correctamente el estado de usuarios
     let usersState: any = {}
     this.users.forEach((_v, user) => {
       usersState[user] = {
@@ -319,7 +340,8 @@ class Room {
       "activePlayer": this.playerStart
     }
 
-    rolls.body.rolls = this.rng.getRolls(6 - (this.state?.users[this.state.activePlayer]?.selectedRolls?.length || 0))
+    const remainingRolls = 6 - (this.state.users[this.state.activePlayer]?.selectedRolls.length || 0)
+    rolls.body.rolls = this.rng.getRolls(remainingRolls)
     rolls.user = this.playerStart
 
     this.lastGameRolls = rolls.body.rolls
@@ -345,7 +367,7 @@ function closeTimeout(uuid: string, clients: Map<string, WebSocket>) {
 }
 
 const rooms: Map<string, Room> = new Map()
-const clientsRoom: Map<string, Room> = new Map() // Es un poco de duplicar pero al final hace las busquedas mas rapidas y queda mas limpio
+const clientsRoom: Map<string, Room> = new Map()
 
 const responseCommands: Record<string, CommandHandler> = {
   "ping": (data, clients) => {
@@ -393,11 +415,25 @@ const responseCommands: Record<string, CommandHandler> = {
       return
     }
 
+    // Verificar que el token tenga el campo necesario
+    if (!tokenData.id) {
+      ws?.send(JSON.stringify({
+        type: "closing",
+        body: "Closing due to invalid token data"
+      }))
+
+      ws?.close()
+
+      clients.delete(data.from)
+      return
+    }
+
     ws?.send(JSON.stringify({
       type: "auth",
       body: JSON.stringify(tokenData)
     }))
 
+    // Eliminar el cliente con la antigua clave y agregarlo con la nueva
     clients.delete(data.from)
     clients.set(tokenData.id, ws!)
 
