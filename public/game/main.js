@@ -7,6 +7,7 @@
   let players = []
   let activePlayer = null
   let selectedRolls = []
+  let opponentSelectedRolls = []
 
   const username = document.querySelector("#username").innerHTML
   const userIdElement = document.querySelector("#id")
@@ -74,7 +75,7 @@
         })
 
         // Mostrar estado del juego
-        document.querySelector("#game-state").textContent = "¡Partida iniciada!"
+        document.querySelector("#game-state").textContent = "¡Partida iniciada! Esperando tiradas..."
 
         // Mostrar las tiradas iniciales
         showRolls(data.body.rolls)
@@ -90,17 +91,22 @@
       }
 
       if (data.type === "resolution-attack-first") {
-        updateCombatLog("¡Ataque del primer jugador!")
+        updateCombatLog(`¡Ataque del primer jugador! Daño: ${data.body.damage}`);
         updatePlayerInfo(data.body.state)
       }
 
       if (data.type === "resolution-attack-second") {
-        updateCombatLog("¡Ataque del segundo jugador!")
+        updateCombatLog(`¡Ataque del segundo jugador! Daño: ${data.body.damage}`);
         updatePlayerInfo(data.body.state)
       }
 
       if (data.type === "game-over") {
         showGameOver(data.body.winner)
+      }
+
+      if (data.type === "opponent-selected-rolls") {
+        opponentSelectedRolls = data.body.rolls;
+        showOpponentSelectedRolls();
       }
     }
 
@@ -181,6 +187,23 @@
       diceDiv.className = diceClass;
       diceDiv.textContent = roll.face;
       selectedRollsDiv.appendChild(diceDiv);
+    });
+  }
+
+  function showOpponentSelectedRolls() {
+    const opponentSelectedRollsDiv = document.querySelector("#opponent-selected-rolls");
+    opponentSelectedRollsDiv.innerHTML = "";
+
+    const opponentTitle = document.createElement("div");
+    opponentTitle.textContent = "Dados seleccionados del oponente:";
+    opponentSelectedRollsDiv.appendChild(opponentTitle);
+
+    opponentSelectedRolls.forEach(roll => {
+      const diceDiv = document.createElement("div");
+      const diceClass = roll.energy ? "dice energy" : `dice ${roll.face.toLowerCase()}`
+      diceDiv.className = diceClass;
+      diceDiv.textContent = roll.face;
+      opponentSelectedRollsDiv.appendChild(diceDiv);
     });
   }
 

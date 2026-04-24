@@ -9,6 +9,7 @@ export function Game() {
         <div id="dice-area">
           <div id="rolls"></div>
           <div id="selected-rolls"></div>
+          <div id="opponent-selected-rolls"></div>
         </div>
         <div id="combat-area">
           <div id="combat-log"></div>
