@@ -1,6 +1,7 @@
 import { IncomingMessage } from "http"
 import React from "react"
 import * as jwt from "jsonwebtoken";
+import { Game } from "@components/Game";
 
 type AppProps = {
   children?: React.ReactNode,
@@ -34,7 +35,7 @@ export const App = ({ children, req }: AppProps) => {
       <div id="players"></div>
       <div id="rolls"></div>
 
-      <script src="game/main.js" />
+      <Game />
     </>
   )
 }
