@@ -140,27 +140,47 @@
 
   function showRolls(rolls, user) {
     let rollsDiv = document.querySelector("#rolls")
-    rollsDiv.innerHTML = "<br>Tiradas:<br>"
+    rollsDiv.innerHTML = ""
 
     // Si no es el jugador activo, mostrar mensaje de espera
     if (user !== userId) {
-      rollsDiv.innerHTML = "<br>Esperando que el jugador seleccione dados<br>"
+      const waitingMessage = document.createElement("div");
+      waitingMessage.textContent = "Esperando que el jugador seleccione dados";
+      rollsDiv.appendChild(waitingMessage);
       return;
     }
 
+    const rollsTitle = document.createElement("div");
+    rollsTitle.textContent = "Tiradas:";
+    rollsDiv.appendChild(rollsTitle);
+
     rolls.forEach(roll => {
+      const diceDiv = document.createElement("div");
       const diceClass = roll.energy ? "dice energy" : `dice ${roll.face.toLowerCase()}`
-      rollsDiv.innerHTML += `<div class="${diceClass}" onclick="selectRoll(this)">${roll.face}</div>`
+      diceDiv.className = diceClass;
+      diceDiv.textContent = roll.face;
+      
+      // Asignar el evento onclick usando JavaScript
+      diceDiv.addEventListener("click", () => selectRoll(diceDiv));
+      
+      rollsDiv.appendChild(diceDiv);
     })
   }
 
   function updateSelectedRolls() {
     const selectedRollsDiv = document.querySelector("#selected-rolls");
-    selectedRollsDiv.innerHTML = "<br>Dados seleccionados:<br>";
+    selectedRollsDiv.innerHTML = "";
+
+    const selectedTitle = document.createElement("div");
+    selectedTitle.textContent = "Dados seleccionados:";
+    selectedRollsDiv.appendChild(selectedTitle);
 
     selectedRolls.forEach(roll => {
+      const diceDiv = document.createElement("div");
       const diceClass = roll.energy ? "dice energy" : `dice ${roll.face.toLowerCase()}`
-      selectedRollsDiv.innerHTML += `<div class="${diceClass}">${roll.face}</div>`
+      diceDiv.className = diceClass;
+      diceDiv.textContent = roll.face;
+      selectedRollsDiv.appendChild(diceDiv);
     });
   }
 
@@ -181,11 +201,25 @@
 
   function showGodFavor() {
     const godFavorDiv = document.querySelector("#god-favor")
-    godFavorDiv.innerHTML = `
-      <div class="god-favor-option" onclick="selectGodFavor('attack')">Ataque</div>
-      <div class="god-favor-option" onclick="selectGodFavor('defense')">Defensa</div>
-      <div class="god-favor-option" onclick="selectGodFavor('steal')">Robo</div>
-    `
+    godFavorDiv.innerHTML = ""
+    
+    const attackOption = document.createElement("div");
+    attackOption.className = "god-favor-option";
+    attackOption.textContent = "Ataque";
+    attackOption.addEventListener("click", () => selectGodFavor("attack"));
+    godFavorDiv.appendChild(attackOption);
+    
+    const defenseOption = document.createElement("div");
+    defenseOption.className = "god-favor-option";
+    defenseOption.textContent = "Defensa";
+    defenseOption.addEventListener("click", () => selectGodFavor("defense"));
+    godFavorDiv.appendChild(defenseOption);
+    
+    const stealOption = document.createElement("div");
+    stealOption.className = "god-favor-option";
+    stealOption.textContent = "Robo";
+    stealOption.addEventListener("click", () => selectGodFavor("steal"));
+    godFavorDiv.appendChild(stealOption);
   }
 
   function updatePlayerInfo(state) {
@@ -208,14 +242,16 @@
 
   function updateCombatLog(message) {
     const combatLog = document.querySelector("#combat-log")
-    combatLog.innerHTML += `<div>${message}</div>`
+    const logDiv = document.createElement("div");
+    logDiv.textContent = message;
+    combatLog.appendChild(logDiv);
     combatLog.scrollTop = combatLog.scrollHeight
   }
 
   function showGameOver(winner) {
     const gameOverDiv = document.createElement("div")
     gameOverDiv.id = "game-over"
-    gameOverDiv.innerHTML = `¡Juego terminado! Ganador: ${winner}`
+    gameOverDiv.textContent = `¡Juego terminado! Ganador: ${winner}`
     document.querySelector("#game-container").appendChild(gameOverDiv)
   }
 
