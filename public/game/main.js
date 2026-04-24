@@ -37,7 +37,7 @@
 
     ws.onmessage = (msg) => {
       let data = JSON.parse(msg.data)
-      
+
       if (data.type != "pong")
         console.log(data)
 
@@ -59,11 +59,11 @@
         currentRoom = data.body.roomId
         playerStart = data.body.playerStart
         players = data.body.players
-        
+
         // Mostrar información de jugadores
         let playersDiv = document.querySelector("#players")
         playersDiv.innerHTML = ""
-        
+
         players.forEach((p) => {
           if (p.id === userId) {
             playersDiv.innerHTML += `<div>${p.username} - Tu</div>`
@@ -72,10 +72,10 @@
             playersDiv.innerHTML += `<div>${p.username}</div>`
           }
         })
-        
+
         // Mostrar estado del juego
         document.querySelector("#game-state").textContent = "¡Partida iniciada!"
-        
+
         // Mostrar las tiradas iniciales
         showRolls(data.body.rolls)
       }
@@ -110,54 +110,54 @@
     }
   }
 
-  function showRolls(rolls, user) {
-    let rollsDiv = document.querySelector("#rolls")
-    rollsDiv.innerHTML = "<br>Tiradas:<br>"
-    
-    // Si no es el jugador activo, mostrar mensaje de espera
-    if (user !== userId) {
-      rollsDiv.innerHTML = "<br>Esperando que el jugador seleccione dados<br>"
-      return;
-    }
-    
-    rolls.forEach(roll => {
-      const diceClass = roll.energy ? "dice energy" : `dice ${roll.face.toLowerCase()}`
-      rollsDiv.innerHTML += `<div class="${diceClass}" onclick="selectRoll(this)">${roll.face}</div>`
-    })
-  }
-
   function selectRoll(diceElement) {
     // Solo permitir selección si es el jugador activo
     if (activePlayer !== userId) return;
-    
+
     const face = diceElement.textContent;
     const isEnergy = diceElement.classList.contains("energy");
-    
+
     // Crear objeto de dado seleccionado
     const selectedRoll = {
       face: face,
       energy: isEnergy
     };
-    
+
     // Añadir a la lista de dados seleccionados
     selectedRolls.push(selectedRoll);
-    
+
     // Marcar el dado como seleccionado visualmente
     diceElement.classList.add("selected");
-    
+
     // Actualizar la sección de dados seleccionados
     updateSelectedRolls();
-    
+
     // Si se han seleccionado 6 dados, enviar al servidor
     if (selectedRolls.length === 6) {
       sendSelectedRolls();
     }
   }
 
+  function showRolls(rolls, user) {
+    let rollsDiv = document.querySelector("#rolls")
+    rollsDiv.innerHTML = "<br>Tiradas:<br>"
+
+    // Si no es el jugador activo, mostrar mensaje de espera
+    if (user !== userId) {
+      rollsDiv.innerHTML = "<br>Esperando que el jugador seleccione dados<br>"
+      return;
+    }
+
+    rolls.forEach(roll => {
+      const diceClass = roll.energy ? "dice energy" : `dice ${roll.face.toLowerCase()}`
+      rollsDiv.innerHTML += `<div class="${diceClass}" onclick="selectRoll(this)">${roll.face}</div>`
+    })
+  }
+
   function updateSelectedRolls() {
     const selectedRollsDiv = document.querySelector("#selected-rolls");
     selectedRollsDiv.innerHTML = "<br>Dados seleccionados:<br>";
-    
+
     selectedRolls.forEach(roll => {
       const diceClass = roll.energy ? "dice energy" : `dice ${roll.face.toLowerCase()}`
       selectedRollsDiv.innerHTML += `<div class="${diceClass}">${roll.face}</div>`
@@ -171,7 +171,7 @@
         rolls: selectedRolls
       }
     }));
-    
+
     // Limpiar selección
     selectedRolls = [];
     document.querySelectorAll("#rolls .dice").forEach(dice => {
@@ -192,12 +192,12 @@
     // Actualizar información de los jugadores
     const playersDiv = document.querySelector("#players")
     playersDiv.innerHTML = ""
-    
+
     Object.keys(state.users).forEach(userId => {
       const playerInfo = state.users[userId]
       const player = players.find(p => p.id === userId)
       const isCurrentPlayer = userId === state.activePlayer
-      
+
       let playerText = `${player.username} - Vida: ${playerInfo.life} - Energía: ${playerInfo.energy}`
       if (isCurrentPlayer) {
         playerText += " (Tu turno)"
