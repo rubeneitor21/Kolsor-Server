@@ -128,9 +128,9 @@ class Room {
       totalSelects += this.state.users[user]?.selectedRolls.length || 0
     })
 
-    if (totalSelects >= 12) { 
-      this.godFavor(); 
-      return; 
+    if (totalSelects >= 12) {
+      this.godFavor();
+      return;
     }
     else {
       if (this.state.activePlayer === this.playerSecond) {
@@ -196,7 +196,21 @@ class Room {
   }
 
   private resolution() {
-    // Activar favores
+
+    this.users.forEach((_v, user) => {
+      if (this.state.users[user]!.energy >= 5 && this.state.users[user]?.godFavor === "protection") {
+        this.state.users[user]!.energy -= 5
+      }
+
+      else if (this.state.users[user]!.energy >= 3 && this.state.users[user]?.godFavor === "damage") {
+        this.state.users[user]!.energy -= 3
+      }
+
+      else {
+        this.state.users[user]!.godFavor = ""
+      }
+    })
+
 
     // Parsear dados 
     let resolutionState: any = {}
@@ -233,7 +247,16 @@ class Room {
     let damageDistancia = Math.max(0, resolutionState[this.playerStart].aDistancia - resolutionState[this.playerSecond].dDistancia)
     let damageMelee = Math.max(0, resolutionState[this.playerStart].aMelee - resolutionState[this.playerSecond].dMelee)
 
+    if (this.state.users[this.playerSecond]?.godFavor === "protection") {
+      damageDistancia = 0
+      damageMelee = 0
+    }
+
     this.state.users[this.playerSecond]!.life -= (damageDistancia + damageMelee)
+
+    if (this.state.users[this.playerStart]?.godFavor === "damage") {
+      this.state.users[this.playerSecond]!.life -= 1
+    }
 
     this.broadcast("resolution-attack-first", {
       body: { "state": this.state }
@@ -254,7 +277,16 @@ class Room {
     damageDistancia = Math.max(0, resolutionState[this.playerSecond].aDistancia - resolutionState[this.playerStart].dDistancia)
     damageMelee = Math.max(0, resolutionState[this.playerSecond].aMelee - resolutionState[this.playerStart].dMelee)
 
+    if (this.state.users[this.playerSecond]?.godFavor === "protection") {
+      damageDistancia = 0
+      damageMelee = 0
+    }
+
     this.state.users[this.playerStart]!.life -= (damageDistancia + damageMelee)
+
+    if (this.state.users[this.playerSecond]?.godFavor === "damage") {
+      this.state.users[this.playerStart]!.life -= 1
+    }
 
     this.broadcast("resolution-attack-second", {
       body: { "state": this.state }
