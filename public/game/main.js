@@ -1,9 +1,19 @@
 (() => {
   let ws //= new WebSocket("wss://" + window.location.host)
   let authed = false
+  let currentRoom = null
+  let userId = null
+  let playerStart = null
+  let players = []
+  let activePlayer = null
+  let selectedRolls = []
+  let opponentSelectedRolls = []
 
   const username = document.querySelector("#username").innerHTML
-  const userId = document.querySelector("#id").innerHTML
+  const userIdElement = document.querySelector("#id")
+  if (userIdElement) {
+    userId = userIdElement.innerHTML
+  }
 
   let intervalId;
 
@@ -28,7 +38,7 @@
 
     ws.onmessage = (msg) => {
       let data = JSON.parse(msg.data)
-      
+
       if (data.type != "pong")
         console.log(data)
 
@@ -47,9 +57,13 @@
       }
 
       if (data.type === "game-start") {
+        currentRoom = data.body.roomId
+        playerStart = data.body.playerStart
+        players = data.body.players
+
+        // Mostrar información de jugadores
         let playersDiv = document.querySelector("#players")
-        
-        let players = data.body.players
+        playersDiv.innerHTML = ""
 
         players.forEach((p) => {
           if (p.id === userId) {
@@ -59,11 +73,40 @@
             playersDiv.innerHTML += `<div>${p.username}</div>`
           }
         })
+
+        // Mostrar estado del juego
+        document.querySelector("#game-state").textContent = "¡Partida iniciada! Esperando tiradas..."
+
+        // Mostrar las tiradas iniciales
+        showRolls(data.body.rolls)
       }
 
       if (data.type === "game-rolls") {
-        let rollsDiv = document.querySelector("#rolls")
-        rollsDiv.innerHTML = "<br>Tiradas Test:<br>" + JSON.stringify(data.body.rolls, null, 2)
+        activePlayer = data.user;
+        showRolls(data.body.rolls, data.user);
+      }
+
+      if (data.type === "god-favor") {
+        showGodFavor()
+      }
+
+      if (data.type === "resolution-attack-first") {
+        updateCombatLog(`¡Ataque del primer jugador!`);
+        updatePlayerInfo(data.body.state)
+      }
+
+      if (data.type === "resolution-attack-second") {
+        updateCombatLog(`¡Ataque del segundo jugador!`);
+        updatePlayerInfo(data.body.state)
+      }
+
+      if (data.type === "game-over") {
+        showGameOver(data.body.winner)
+      }
+
+      if (data.type === "opponent-selected-rolls") {
+        opponentSelectedRolls = data.body.rolls;
+        showOpponentSelectedRolls();
       }
     }
 
@@ -71,6 +114,193 @@
       console.log("Conexion cerrada")
       clearInterval(intervalId)
     }
+  }
+
+  function selectRoll(diceElement) {
+    // Solo permitir selección si es el jugador activo
+    if (activePlayer !== userId) return;
+
+    const face = diceElement.textContent;
+    const isEnergy = diceElement.classList.contains("energy");
+
+    // Crear objeto de dado seleccionado
+    const selectedRoll = {
+      face: face,
+      energy: isEnergy
+    };
+
+    // Añadir a la lista de dados seleccionados
+    selectedRolls.push(selectedRoll);
+
+    // Marcar el dado como seleccionado visualmente
+    diceElement.classList.add("selected");
+
+    // Actualizar la sección de dados seleccionados
+    updateSelectedRolls();
+
+    // Si se han seleccionado 6 dados, enviar al servidor
+    if (selectedRolls.length === 6) {
+      sendSelectedRolls();
+    }
+  }
+
+  function showRolls(rolls, user) {
+    let rollsDiv = document.querySelector("#rolls")
+    rollsDiv.innerHTML = ""
+
+    // Si no es el jugador activo, mostrar mensaje de espera
+    if (user !== userId) {
+      const waitingMessage = document.createElement("div");
+      waitingMessage.textContent = "Esperando que el jugador seleccione dados";
+      rollsDiv.appendChild(waitingMessage);
+      return;
+    }
+
+    const rollsTitle = document.createElement("div");
+    rollsTitle.textContent = "Tiradas:";
+    rollsDiv.appendChild(rollsTitle);
+
+    rolls.forEach(roll => {
+      const diceDiv = document.createElement("div");
+      const diceClass = roll.energy ? "dice energy" : `dice ${roll.face.toLowerCase()}`
+      diceDiv.className = diceClass;
+      diceDiv.textContent = roll.face;
+      
+      // Asignar el evento onclick usando JavaScript
+      diceDiv.addEventListener("click", () => selectRoll(diceDiv));
+      
+      rollsDiv.appendChild(diceDiv);
+    })
+    
+    // Añadir botón para confirmar selección parcial
+    const confirmButton = document.createElement("button");
+    confirmButton.id = "confirm-rolls";
+    confirmButton.textContent = "Confirmar selección";
+    confirmButton.addEventListener("click", sendSelectedRolls);
+    rollsDiv.appendChild(confirmButton);
+  }
+
+  function updateSelectedRolls() {
+    const selectedRollsDiv = document.querySelector("#selected-rolls");
+    selectedRollsDiv.innerHTML = "";
+
+    const selectedTitle = document.createElement("div");
+    selectedTitle.textContent = "Dados seleccionados:";
+    selectedRollsDiv.appendChild(selectedTitle);
+
+    selectedRolls.forEach(roll => {
+      const diceDiv = document.createElement("div");
+      const diceClass = roll.energy ? "dice energy" : `dice ${roll.face.toLowerCase()}`
+      diceDiv.className = diceClass;
+      diceDiv.textContent = roll.face;
+      selectedRollsDiv.appendChild(diceDiv);
+    });
+  }
+
+  function showOpponentSelectedRolls() {
+    const opponentSelectedRollsDiv = document.querySelector("#opponent-selected-rolls");
+    opponentSelectedRollsDiv.innerHTML = "";
+
+    const opponentTitle = document.createElement("div");
+    opponentTitle.textContent = "Dados seleccionados del oponente:";
+    opponentSelectedRollsDiv.appendChild(opponentTitle);
+
+    opponentSelectedRolls.forEach(roll => {
+      const diceDiv = document.createElement("div");
+      const diceClass = roll.energy ? "dice energy" : `dice ${roll.face.toLowerCase()}`
+      diceDiv.className = diceClass;
+      diceDiv.textContent = roll.face;
+      opponentSelectedRollsDiv.appendChild(diceDiv);
+    });
+  }
+
+  function sendSelectedRolls() {
+    // Si no hay dados seleccionados, no hacer nada
+    if (selectedRolls.length === 0) return;
+    
+    ws.send(JSON.stringify({
+      type: "select-rolls",
+      body: {
+        rolls: selectedRolls
+      }
+    }));
+
+    // Limpiar selección
+    selectedRolls = [];
+    document.querySelectorAll("#rolls .dice").forEach(dice => {
+      dice.classList.remove("selected");
+    });
+    
+    // Eliminar el botón de confirmación
+    const confirmButton = document.querySelector("#confirm-rolls");
+    if (confirmButton) {
+      confirmButton.remove();
+    }
+  }
+
+  function showGodFavor() {
+    const godFavorDiv = document.querySelector("#god-favor")
+    godFavorDiv.innerHTML = ""
+    
+    const attackOption = document.createElement("div");
+    attackOption.className = "god-favor-option";
+    attackOption.textContent = "Ataque";
+    attackOption.addEventListener("click", () => selectGodFavor("attack"));
+    godFavorDiv.appendChild(attackOption);
+    
+    const defenseOption = document.createElement("div");
+    defenseOption.className = "god-favor-option";
+    defenseOption.textContent = "Defensa";
+    defenseOption.addEventListener("click", () => selectGodFavor("defense"));
+    godFavorDiv.appendChild(defenseOption);
+    
+    const stealOption = document.createElement("div");
+    stealOption.className = "god-favor-option";
+    stealOption.textContent = "Robo";
+    stealOption.addEventListener("click", () => selectGodFavor("steal"));
+    godFavorDiv.appendChild(stealOption);
+  }
+
+  function updatePlayerInfo(state) {
+    // Actualizar información de los jugadores
+    const playersDiv = document.querySelector("#players")
+    playersDiv.innerHTML = ""
+
+    Object.keys(state.users).forEach(userId => {
+      const playerInfo = state.users[userId]
+      const player = players.find(p => p.id === userId)
+      const isCurrentPlayer = userId === state.activePlayer
+
+      let playerText = `${player.username} - Vida: ${playerInfo.life} - Energía: ${playerInfo.energy}`
+      if (isCurrentPlayer) {
+        playerText += " (Tu turno)"
+      }
+      playersDiv.innerHTML += `<div>${playerText}</div>`
+    })
+  }
+
+  function updateCombatLog(message) {
+    const combatLog = document.querySelector("#combat-log")
+    const logDiv = document.createElement("div");
+    logDiv.textContent = message;
+    combatLog.appendChild(logDiv);
+    combatLog.scrollTop = combatLog.scrollHeight
+  }
+
+  function showGameOver(winner) {
+    const gameOverDiv = document.createElement("div")
+    gameOverDiv.id = "game-over"
+    gameOverDiv.textContent = `¡Juego terminado! Ganador: ${winner}`
+    document.querySelector("#game-container").appendChild(gameOverDiv)
+  }
+
+  function selectGodFavor(favor) {
+    ws.send(JSON.stringify({
+      type: "select-favor",
+      body: {
+        favor: favor
+      }
+    }))
   }
 
   searchButton.addEventListener("click", async () => {

@@ -19,7 +19,7 @@ services:
 
   mongo:
     image: mongo:latest
-    container_name: ${STACK_NAME}_db
+    container_name: kolsor_db
     restart: always
     environment:
       - MONGO_INITDB_ROOT_USERNAME=kolsor
