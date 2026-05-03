@@ -19,8 +19,9 @@ const db = Database.getDatabase();
 
 const server = http.createServer(async (req, res) => {
   const response = await loadPage(req.url || "", req)
-
-  logger.info(req.url + " - " + response.status + ` (${req.headers["x-forwarded-for"]})`)
+  
+  if (req.headers['x-forwarded-for'] !== "caddy-server")
+    logger.info(req.url + " - " + response.status + ` (${req.headers["x-forwarded-for"]})`)
 
   if (response.headers) {
     Object.entries(response.headers).forEach(([k, v]) => res.setHeader(k, v))
